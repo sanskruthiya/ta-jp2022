@@ -270,7 +270,7 @@ document.getElementById('b_location').addEventListener('click', function () {
 });
 
 const attCntl = new maplibregl.AttributionControl({
-    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ（2019年〜2022年の交通事故統計情報）</a>に基づき作成者が独自に加工（<a href="https://twitter.com/Smille_feuille" target="_blank">Twitter</a> | <a href="https://github.com/sanskruthiya/traffic_accident_JP" target="_blank">Github</a>） ',
+    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ（2019年〜2022年の交通事故統計情報）</a>に基づき作成者が独自に加工（<a href="https://twitter.com/Smille_feuille" target="_blank">Twitter</a> | <a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">Github</a>） ',
     compact: true
 });
 
