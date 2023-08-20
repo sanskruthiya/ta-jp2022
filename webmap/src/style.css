@@ -1,0 +1,102 @@
+html, body {
+    margin: 0; padding: 0;
+    -webkit-text-size-adjust : 100%;
+}
+
+#map {
+    position: fixed;
+    width: 100%;
+    height: 100%
+    }
+
+.map-overlay {
+    position: absolute;
+    color:#111; font-size: 12px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
+    width: 120px;
+    top: 2px;
+    right: 2px;
+    padding: 5px;
+    background: rgba(255,255,255,0.8);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+    line-height: 20px;
+}
+
+#buttons {
+    position: absolute;
+    z-index: 1;
+}
+#buttons>button {
+    display:inline-block;
+    position: relative;
+    justify-content: center;
+    margin: 3px;
+    width: 80px;
+    height: 45px;
+    padding: 5px;
+    border: none;
+    border-radius: 3px;
+    z-index: 1;
+    font-size: 12px;
+    text-align: center;
+}
+
+#icon-loader {
+    position: absolute;
+    top: 50%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+    border: 8px solid #fff;
+    border-radius: 50%;
+    border-top: 8px solid #3498db;
+    width: 30px;
+    height: 30px;
+    animation: spin 2s linear infinite;
+    z-index: 2;
+}
+
+@keyframes spin{
+    0%{
+      transform: rotate(0deg);
+    }
+    100%{
+      transform: rotate(360deg);
+    }
+}
+
+p.remark {
+    color:#555; font-size: 10px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif; 
+}
+
+p.tipstyle01 {
+    color:#111; font-size: 12px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
+}
+
+p.tipstyle02 {
+    color:#111; font-size: 13px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
+    line-height: 30px;
+}
+
+span.circle01{
+    display: inline-block;
+    vertical-align: -2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: solid 3px #ff69b4;
+    background: #ff69b4;
+}
+
+span.circle02{
+    display: inline-block;
+    vertical-align: -2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: solid 3px #ff69b4;
+    background: #fff;
+}
+
+span.style01 {
+    background: linear-gradient(transparent 85%, #ffd700 80%);
+}

@@ -1,0 +1,5 @@
+webmap/node_modules/
+webmap/package-lock.json
+webmap/webpack.config.js
+webmap/dist/app/pmtiles/
+.DS_Store
