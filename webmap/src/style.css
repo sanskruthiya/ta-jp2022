@@ -12,14 +12,15 @@ html, body {
 .map-overlay {
     position: absolute;
     color:#111; font-size: 12px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
-    width: 120px;
-    top: 2px;
-    right: 2px;
+    width: 110px;
+    top: 5px;
+    left: 2px;
     padding: 5px;
     background: rgba(255,255,255,0.8);
     box-shadow: 0 0 15px rgba(0,0,0,0.2);
     border-radius: 5px;
     line-height: 20px;
+    z-index: 0;
 }
 
 #buttons {
@@ -99,4 +100,8 @@ span.circle02{
 
 span.style01 {
     background: linear-gradient(transparent 85%, #ffd700 80%);
+}
+
+.maplibregl-ctrl-geocoder {
+    max-width: 80%;
 }

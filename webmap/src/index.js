@@ -1,13 +1,13 @@
 import * as maplibregl from "maplibre-gl";
 //import * as pmtiles from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
+import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import './style.css';
-
 /*
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles",protocol.tile);
 */
-
 function getDay(d) {
     return d == '1' ? '日' :
            d == '2' ? '月' :
@@ -192,86 +192,71 @@ map.on('mouseleave', 'TrafficAccidentRecord', function () {
     map.getCanvas().style.cursor = '';
 });
 
-document.getElementById('b_legend').style.backgroundColor = "#2c7fb8";
-document.getElementById('b_legend').style.color = "#fff";
-
-document.getElementById('b_location').style.backgroundColor = "#2c7fb8";
-document.getElementById('b_location').style.color = "#fff";
-
-document.getElementById('legend').style.display ="block";
-
-document.getElementById('b_legend').addEventListener('click', function () {
-    const visibility = document.getElementById('legend');
-    if (visibility.style.display == 'block') {
-        visibility.style.display = 'none';
-        this.style.backgroundColor = "#fff";
-        this.style.color = "#555"
-    }
-    else {
-        visibility.style.display = 'block';
-        this.style.backgroundColor = "#2c7fb8";
-        this.style.color = "#fff";
-    }
-});
-
-//A function for searching user's current location with a text-box button. Instead of this, you can also use Maplibre's official one.
-const loc_options = {
-    enableHighAccuracy: false,
-    timeout: 5000,
-    maximumAge: 0
-};
-
-document.getElementById('icon-loader').style.display = 'none';
-
-let popup_loc = new maplibregl.Popup({anchor:"bottom", focusAfterOpen:false});
-let marker_loc = new maplibregl.Marker();
-
-document.getElementById('b_location').addEventListener('click', function () {
-    this.setAttribute("disabled", true);
-    this.style.backgroundColor = "#fff";
-    this.style.color = "#555"
-    document.getElementById('icon-loader').style.display = 'block';
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            marker_loc.remove();
-            popup_loc.remove();
-            document.getElementById('icon-loader').style.display = 'none';
-            this.removeAttribute("disabled");
-            this.style.backgroundColor = "#2c7fb8";
-            this.style.color = "#fff";
-
-            let c_lat = position.coords.latitude;
-            let c_lng = position.coords.longitude;
-            
-            map.jumpTo({
-                center: [c_lng, c_lat],
-                zoom: map.getZoom(),
-            });
-
-            let popupContent = '<p class="tipstyle02">現在地はここです。</p><hr><p class="remark">地点情報が正確に取得できなかった場合は、現在地確認をもう一度お試しください。';
-            popup_loc.setLngLat([c_lng, c_lat]).setHTML(popupContent).addTo(map);
-            marker_loc.setLngLat([c_lng, c_lat]).addTo(map);
-        },
-        (error) => {
-            popup_loc.remove();
-            document.getElementById('icon-loader').style.display = 'none';
-            this.style.backgroundColor = "#999";
-            this.style.color = "#fff"
-            console.warn(`ERROR(${error.code}): ${error.message}`)
-            map.flyTo({
-                center: init_coord,
-                zoom: init_zoom,
-                speed: 1,
-            });
-            popup_loc.setLngLat(init_coord).setHTML('現在地が取得できませんでした').addTo(map);
-        },
-        loc_options
-    );
-});
-
 const attCntl = new maplibregl.AttributionControl({
     customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ（2019年〜2022年の交通事故統計情報）</a>に基づき作成者が独自に加工（<a href="https://twitter.com/Smille_feuille" target="_blank">Twitter</a> | <a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">Github</a>） ',
     compact: true
 });
 
 map.addControl(attCntl, 'bottom-right');
+
+const geocoderApi = {
+    forwardGeocode: async (config) => {
+        const features = [];
+        try {
+            const request =
+        `https://nominatim.openstreetmap.org/search?q=${
+            config.query
+        }&format=geojson&polygon_geojson=1&addressdetails=1`;
+            const response = await fetch(request);
+            const geojson = await response.json();
+            for (const feature of geojson.features) {
+                const center = [
+                    feature.bbox[0] +
+                (feature.bbox[2] - feature.bbox[0]) / 2,
+                    feature.bbox[1] +
+                (feature.bbox[3] - feature.bbox[1]) / 2
+                ];
+                const point = {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: center
+                    },
+                    place_name: feature.properties.display_name,
+                    properties: feature.properties,
+                    text: feature.properties.display_name,
+                    place_type: ['place'],
+                    center
+                };
+                features.push(point);
+            }
+        } catch (e) {
+            console.error(`Failed to forwardGeocode with error: ${e}`);
+        }
+
+        return {
+            features
+        };
+    }
+};
+
+const geocoder = new MaplibreGeocoder(geocoderApi, {
+        maplibregl,
+        zoom: 10,
+        placeholder: '場所を検索',
+        collapsed: true,
+        //bbox:[122.94, 24.04, 153.99, 45.56],
+        countries:'ja',
+        language:'ja'
+    }
+);
+map.addControl(geocoder, 'top-right');
+
+const geolocator = new maplibregl.GeolocateControl({
+        positionOptions: {
+            enableHighAccuracy: true
+        },
+        trackUserLocation: true
+    }
+);
+map.addControl(geolocator, 'top-right');
