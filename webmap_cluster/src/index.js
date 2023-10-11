@@ -300,6 +300,7 @@ map.on('load', () => {
 
     selected_category.addEventListener('change', () => {
         target_category = selected_category.selectedIndex;
+        map.setPaintProperty('ta_square', 'circle-stroke-color', ['step',['get',flagNames[target_category]],colors[1],1,colors[0]]);
         updateMarkers();
         generateLegend();
     });
@@ -419,7 +420,7 @@ function donutSegment(start, end, r, r0, color) {
         0,
         r + r0 * x0,
         r + r0 * y0,
-        `" fill="${color}" fill-opacity="0.7"/>`
+        `" fill="${color}" fill-opacity="0.8"/>`
     ].join(' ');
 }
 
