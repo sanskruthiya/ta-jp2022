@@ -2,4 +2,8 @@ webmap/node_modules/
 webmap/package-lock.json
 webmap/webpack.config.js
 webmap/dist/app/pmtiles/
+webmap_cluster/node_modules/
+webmap_cluster/package-lock.json
+webmap_cluster/webpack.config.js
+webmap_cluster/dist/app/pmtiles/
 .DS_Store

@@ -1,0 +1,23 @@
+{
+  "name": "webmap_cluster",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack"
+  },
+  "keywords": [],
+  "author": "sanskruthiya",
+  "license": "ISC",
+  "devDependencies": {
+    "@maplibre/maplibre-gl-geocoder": "^1.5.0",
+    "css-loader": "^6.8.1",
+    "file-loader": "^6.2.0",
+    "maplibre-gl": "^3.4.0",
+    "pmtiles": "^2.11.0",
+    "style-loader": "^3.3.3",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
+  }
+}
