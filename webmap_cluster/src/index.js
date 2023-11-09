@@ -114,36 +114,39 @@ for (let i = 0; i < categoryLength; i++) {
 
 const selected_category = document.querySelector('.category-select');
 
-const init_coord = [140.000, 36.000];
-const init_zoom = 7.5;
 const init_bearing = 0;
 const init_pitch = 0;
+const viewset_init = [7.5, 36.000, 140.000];
+const viewset_hash = (location.hash ? location.hash.slice(1).split('/') : viewset_init);
 
 const map = new maplibregl.Map({
     container: 'map',
     style: 'https://tile2.openstreetmap.jp/styles/osm-bright-ja/style.json',
-    center: init_coord,
+    center: [viewset_hash[2],viewset_hash[1]],
     interactive: true,
-    zoom: init_zoom,
+    zoom: viewset_hash[0],
     minZoom: 2,
     maxZoom: 21,
     maxPitch: 60,
     //maxBounds: [[110.0000, 20.0000],[170.0000, 50.0000]],
     bearing: init_bearing,
     pitch: init_pitch,
-    attributionControl:false
+    attributionControl:false,
+    hash: true
 });
 
 map.on('load', () => {
     map.addSource('ta_point', {
         'type': 'vector',
-        'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_point.pmtiles',
+        //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_point.pmtiles',
+        'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles',
         "minzoom": 2,
         "maxzoom": 14,
     });
     map.addSource('ta_cluster', {
         'type': 'vector',
-        'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_flags_clustered.pmtiles',
+        //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_flags_clustered.pmtiles',
+        'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles',
         "minzoom": 2,
         "maxzoom": 15,
     });
@@ -304,22 +307,33 @@ map.on('load', () => {
         updateMarkers();
         generateLegend();
     });
+
+    map.on('click', function(e){
+        map.panTo(e.lngLat,{duration:1000});
+        if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
+            const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0];
+            const a_size = Number(feat.properties["負傷者数"])+Number(feat.properties["死者数"])
+            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>'
+            popupContent += '<p class="tipstyle02"><span class="style01">'+feat.properties["発生日時　　年"]+'年'+feat.properties["発生日時　　月"]+'月'+feat.properties["発生日時　　日"]+'日（'+getDay(feat.properties["曜日(発生年月日)"])+(feat.properties["祝日(発生年月日)"]==="0"?'・祝':'')+'）';
+            popupContent += feat.properties["発生日時　　時"]+'時'+feat.properties["発生日時　　分"]+'分頃</span>に発生した<span class="style01">'+ getType(feat.properties["事故類型"]) +'の事故</span>で、';
+            popupContent += (feat.properties["負傷者数"] != "0" ? '<span class="style01">'+feat.properties["負傷者数"]+'名が負傷</span>':'')+(feat.properties["死者数"] != "0" ? " ":"した。")+(feat.properties["死者数"] != "0" ? '<span class="style01">'+feat.properties["死者数"]+'名が亡くなった</span>。':'')+'<br>';
+            popupContent += '当事者の年齢層は<span class="style01">'+ getAge(feat.properties["年齢（当事者A）"]) +(getAge(feat.properties["年齢（当事者B）"]) != "-" ? 'と、'+getAge(feat.properties["年齢（当事者B）"]):'')+'</span>'+(a_size > 2 ? '（本票記載の２名のみ表示）':'')+'。<br>';
+            popupContent += '現場は<span class="style01">'+getRoadtype(feat.properties["道路線形"])+(getLocation(feat.properties["道路形状"]) != "交差点" ? getLocation(feat.properties["道路形状"]):getSignal(feat.properties["信号機"])+"交差点")+'</span>で、';
+            popupContent += '当時の天候は<span class="style01">'+getWeather(feat.properties["天候"])+'</span>、路面状態は<span class="style01">'+getCondition(feat.properties["路面状態"])+'</span>。</p>';
+    
+            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
+            .setLngLat(e.lngLat)
+            .setHTML(popupContent)
+            .addTo(map);
+        } else {
+            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"240px"})
+            .setLngLat(e.lngLat)
+            .setHTML('<p class="remark"><a href="https://www.google.com/maps/@?api=1&map_action=map&center='+e.lngLat.wrap().lat.toFixed(5)+','+e.lngLat.wrap().lng.toFixed(5)+'&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank">この地点のGoogleマップへのリンク</a></p>')
+            .addTo(map);
+        }
+    });
 });
 
-map.on('click', 'ta_record', function (e) {
-    const a_size = Number(e.features[0].properties["負傷者数"])+Number(e.features[0].properties["死者数"])
-    let popupContent = '<p class="tipstyle02"><span class="style01">'+e.features[0].properties["発生日時　　年"]+'年'+e.features[0].properties["発生日時　　月"]+'月'+e.features[0].properties["発生日時　　日"]+'日（'+getDay(e.features[0].properties["曜日(発生年月日)"])+(e.features[0].properties["祝日(発生年月日)"]==="0"?'・祝':'')+'）';
-    popupContent += e.features[0].properties["発生日時　　時"]+'時'+e.features[0].properties["発生日時　　分"]+'分頃</span>に発生した<span class="style01">'+ getType(e.features[0].properties["事故類型"]) +'の事故</span>で、';
-    popupContent += (e.features[0].properties["負傷者数"] != "0" ? '<span class="style01">'+e.features[0].properties["負傷者数"]+'名が負傷</span>':'')+(e.features[0].properties["死者数"] != "0" ? " ":"した。")+(e.features[0].properties["死者数"] != "0" ? '<span class="style01">'+e.features[0].properties["死者数"]+'名が亡くなった</span>。':'')+'<br>';
-    popupContent += '当事者の年齢層は<span class="style01">'+ getAge(e.features[0].properties["年齢（当事者A）"]) +(getAge(e.features[0].properties["年齢（当事者B）"]) != "-" ? 'と、'+getAge(e.features[0].properties["年齢（当事者B）"]):'')+'</span>'+(a_size > 2 ? '（本票記載の２名のみ表示）':'')+'。<br>';
-    popupContent += '現場は<span class="style01">'+getRoadtype(e.features[0].properties["道路線形"])+(getLocation(e.features[0].properties["道路形状"]) != "交差点" ? getLocation(e.features[0].properties["道路形状"]):getSignal(e.features[0].properties["信号機"])+"交差点")+'</span>で、';
-    popupContent += '当時の天候は<span class="style01">'+getWeather(e.features[0].properties["天候"])+'</span>、路面状態は<span class="style01">'+getCondition(e.features[0].properties["路面状態"])+'</span>。</p>';
-    
-    new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
-    .setLngLat(e.lngLat)
-    .setHTML(popupContent)
-    .addTo(map);
-});
 map.on('mouseenter', 'ta_record', function () {
     map.getCanvas().style.cursor = 'pointer';
 });
@@ -555,11 +569,11 @@ document.getElementById('b_location').addEventListener('click', function () {
                 this.style.color = "#fff";
                 console.warn(`ERROR(${error.code}): ${error.message}`)
                 map.flyTo({
-                    center: init_coord,
-                    zoom: init_zoom,
+                    center: [viewset_hash[2],viewset_hash[1]],
+                    zoom: viewset_hash[0],
                     speed: 1,
                 });
-                popup_loc.setLngLat(init_coord).setHTML('現在地が取得できませんでした').addTo(map);
+                popup_loc.setLngLat([viewset_hash[2],viewset_hash[1]]).setHTML('現在地が取得できませんでした').addTo(map);
                 flag_loc = 2;
                 this.removeAttribute("disabled");
             },

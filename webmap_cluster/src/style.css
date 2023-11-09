@@ -94,7 +94,8 @@ html, body {
 }
 
 p.remark {
-    color:#555; font-size: 10px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif; 
+    color:#555; font-size: 10px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
+    line-height: 2px;
 }
 
 p.tipstyle01 {
