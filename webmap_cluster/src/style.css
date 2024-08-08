@@ -12,7 +12,7 @@ html, body {
 .legend-overlay {
     position: absolute;
     color:#111; font-size: 12px; font-weight: normal; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
-    width: 110px;
+    width: 140px;
     top: 5px;
     left: 2px;
     padding: 5px;
@@ -21,6 +21,10 @@ html, body {
     border-radius: 5px;
     line-height: 20px;
     z-index: 0;
+}
+
+.legend-overlay label {
+    color:#111; font-size: 13px;
 }
 
 .select-overlay {
@@ -129,6 +133,32 @@ span.circle02{
 
 span.style01 {
     background: linear-gradient(transparent 85%, #ffd700 80%);
+}
+
+table.tablestyle02 {
+    table-layout: auto; width: 100%;
+    color:#111; font-size: 12px; font-weight: 500; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
+    border-collapse: collapse; border-spacing:0; border:1px solid #fff;
+}
+
+table.tablestyle02 th, table.tablestyle02 td{
+    padding: 4px; text-align:left;
+}
+
+table.tablestyle02 tr:nth-child(odd){
+    background-color: #eee
+}
+
+.t-popup .maplibregl-popup-content {
+    background: rgba(250, 250, 250, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    padding: 16px 8px;
+}
+
+.t-popup .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+    align-self: center;
+    border-right: none;
+    border-left-color: #333;
 }
 
 .maplibregl-ctrl-geocoder {

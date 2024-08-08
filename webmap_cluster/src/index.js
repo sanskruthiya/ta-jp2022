@@ -98,8 +98,8 @@ function getAge(d) {
            '-'
 }
 
-const categoryNames = ["歩行者が関連した比率","夜間の事故比率","65歳以上が関連した比率","死亡事故の比率"];
-const flagNames = ["pedestrian_flag","night_flag","senior_flag","case_flag"];
+const categoryNames = ["直近2年の件数比率","歩行者が関連した比率","夜間の事故比率","65歳以上が関連した比率","死亡事故の比率"];
+const flagNames = ["recent_flag","pedestrian_flag","night_flag","senior_flag","case_flag"];
 let target_category = 0;
 const colors = ['#4169e1', '#87cefa'];//Colors for pie charts. Can be changed by selected categories, but so far only one pattern is set. 
 
@@ -108,7 +108,7 @@ for (let i = 0; i < categoryLength; i++) {
     const selectCategory = document.getElementById('category-id');
     const optionName = document.createElement('option');
     optionName.value = categoryNames[i];
-    optionName.textContent = categoryNames[i];
+    optionName.textContent = '円グラフ: ' + categoryNames[i];
     selectCategory.appendChild(optionName);
 }
 
@@ -139,16 +139,16 @@ map.on('load', () => {
     map.addSource('ta_point', {
         'type': 'vector',
         //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_point.pmtiles',
-        'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles',
+        'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles?202408',
         "minzoom": 2,
-        "maxzoom": 14,
+        "maxzoom": 16,
     });
     map.addSource('ta_cluster', {
         'type': 'vector',
         //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_flags_clustered.pmtiles',
-        'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles',
+        'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles?202408',
         "minzoom": 2,
-        "maxzoom": 15,
+        "maxzoom": 16,
     });
 
     map.addLayer({
@@ -201,7 +201,7 @@ map.on('load', () => {
         'paint': {
             'circle-color': 'transparent',
             'circle-stroke-color':'transparent',
-            'circle-radius': 1
+            'circle-radius': ['interpolate',['linear'],['zoom'],5,15,15,8]
         },
     });
     map.addLayer({
@@ -279,14 +279,14 @@ map.on('load', () => {
     function generateLegend() {
         legendContent = '';
         if (map.queryRenderedFeatures({layers: ['ta_pseudo']})[0] !== undefined){
-            legendContent += '<p>' +
+            legendContent += '<hr><p>' +
             `
             <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden"><defs><clipPath id="clip0"><rect x="1159" y="256" width="28" height="28"/></clipPath><clipPath id="clip1"><rect x="1159" y="256" width="28" height="28"/></clipPath><clipPath id="clip2"><rect x="1160" y="259" width="23" height="24"/></clipPath><clipPath id="clip3"><rect x="1160" y="259" width="23" height="24"/></clipPath></defs><g clip-path="url(#clip0)" transform="translate(-1159 -256)"><g clip-path="url(#clip1)"><g clip-path="url(#clip2)"><path d="M1171.99 260.134C1178.1 260.134 1183.06 265.092 1183.06 271.208L1176.42 271.208C1176.42 268.762 1174.43 266.779 1171.99 266.779Z" stroke="#FFFFFF" stroke-width="1.14583" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" stroke-opacity="1" fill="${colors[0]}" fill-rule="evenodd" fill-opacity="1"/></g><g clip-path="url(#clip3)"><path d="M1183.06 271.208C1183.06 277.324 1178.1 282.282 1171.99 282.282 1165.87 282.282 1160.91 277.324 1160.91 271.208 1160.91 265.092 1165.87 260.134 1171.99 260.134L1171.99 266.779C1169.54 266.779 1167.56 268.762 1167.56 271.208 1167.56 273.655 1169.54 275.638 1171.99 275.638 1174.43 275.638 1176.42 273.655 1176.42 271.208Z" stroke="#FFFFFF" stroke-width="1.14583" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" stroke-opacity="1" fill="${colors[1]}" fill-rule="evenodd" fill-opacity="1"/></g></g></g></svg>
             `
-            +'<br>事故件数及び、'+ categoryNames[target_category] +'</p>';//24歳以下が関連なども可能だが、当該事故の関係者が運転者か歩行者かデータ上不明なので留意が必要
+            +'<br>事故件数及び、<br>'+ categoryNames[target_category] +'</p>';//24歳以下が関連なども可能だが、当該事故の関係者が運転者か歩行者かデータ上不明なので留意が必要
         }
         if (map.queryRenderedFeatures({layers: ['ta_record']})[0] !== undefined){
-            legendContent += '<span class="circle01"></span>：死亡事故</p><p><span class="circle02"></span>：負傷事故</p>';
+            legendContent += '<hr><span class="circle01"></span>：死亡事故</p><p><span class="circle02"></span>：負傷事故</p>';
         }
         ta_legend.innerHTML = legendContent;
     }
@@ -307,13 +307,28 @@ map.on('load', () => {
         updateMarkers();
         generateLegend();
     });
-
+    
     map.on('click', function(e){
-        map.panTo(e.lngLat,{duration:1000});
-        if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
+        map.panTo(e.lngLat, {duration:1000});
+        if (map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0] !== undefined){
+            const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0];
+            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
+            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+(feat.properties['point_count'] > 0 ? Number(feat.properties['point_count']).toLocaleString(): 1)+'件</span></p>';
+            popupContent += '<table class="tablestyle02">'+
+            '<tr><td>直近2年間の事故</td><td>'+Number(feat.properties['recent_flag']).toLocaleString()+'件</td></tr>'+
+            '<tr><td>歩行者が関連した事故</td><td>'+Number(feat.properties['pedestrian_flag']).toLocaleString()+'件</td></tr>'+
+            '<tr><td>夜間の事故</td><td>'+Number(feat.properties['night_flag']).toLocaleString()+'件</td></tr>'+
+            '<tr><td>65歳以上が関連した事故</td><td>'+Number(feat.properties['senior_flag']).toLocaleString()+'件</td></tr>'+
+            '<tr><td>死亡事故</td><td>'+Number(feat.properties['case_flag']).toLocaleString()+'件</td></tr>'+
+            '</table>';
+            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
+            .setLngLat(e.lngLat)
+            .setHTML(popupContent)
+            .addTo(map);
+        } else if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
             const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0];
             const a_size = Number(feat.properties["負傷者数"])+Number(feat.properties["死者数"])
-            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>'
+            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
             popupContent += '<p class="tipstyle02"><span class="style01">'+feat.properties["発生日時　　年"]+'年'+feat.properties["発生日時　　月"]+'月'+feat.properties["発生日時　　日"]+'日（'+getDay(feat.properties["曜日(発生年月日)"])+(feat.properties["祝日(発生年月日)"]==="0"?'・祝':'')+'）';
             popupContent += feat.properties["発生日時　　時"]+'時'+feat.properties["発生日時　　分"]+'分頃</span>に発生した<span class="style01">'+ getType(feat.properties["事故類型"]) +'の事故</span>で、';
             popupContent += (feat.properties["負傷者数"] != "0" ? '<span class="style01">'+feat.properties["負傷者数"]+'名が負傷</span>':'')+(feat.properties["死者数"] != "0" ? " ":"した。")+(feat.properties["死者数"] != "0" ? '<span class="style01">'+feat.properties["死者数"]+'名が亡くなった</span>。':'')+'<br>';
@@ -332,6 +347,7 @@ map.on('load', () => {
             .addTo(map);
         }
     });
+
 });
 
 map.on('mouseenter', 'ta_record', function () {
@@ -439,7 +455,7 @@ function donutSegment(start, end, r, r0, color) {
 }
 
 const attCntl = new maplibregl.AttributionControl({
-    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a>に基づき作成者が独自に加工（<a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">Github</a>） ',
+    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a>に基づき作成者が独自に加工（<a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">Github</a> | <a href="https://form.run/@party--1681740493" target="_blank">作成者への問合せフォーム</a> )',
     compact: true
 });
 
