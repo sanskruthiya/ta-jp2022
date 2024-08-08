@@ -1,8 +1,8 @@
 # Geographic Record of Traffic Accident in Japan 
-警察庁オープンデータに基づく、日本の交通事故統計情報(2019年〜2022年)の地理情報データです。
+警察庁オープンデータに基づく、日本の交通事故統計情報(2019年〜2023年)の地理情報データです。
 
-- ウェブ地図サンプル：[リンク](https://kashiwa.co-place.com/cmap/ta-jp/)
-- ウェブ地図（円グラフ版）：[リンク](https://kashiwa.co-place.com/cmap/ta-jc/)
+- ウェブ地図サンプル(2019年〜2022年のデータ)：[リンク](https://kashiwa.co-place.com/cmap/ta-jp/)
+- ウェブ地図（円グラフ版）(2019年〜2023年のデータ)：[リンク](https://kashiwa.co-place.com/cmap/ta-jc/)
 - データ出典元：[警察庁オープンデータ](https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html)
 
 ## 概要
@@ -11,7 +11,7 @@
 - ベクトルタイルを参照したい場合は、"webmap/dist/app/tile"のディレクトリをご参照ください。ただし、デモサイトではPMTiles形式のベクトルタイルを参照しており、このPMTilesの参照先URLはsrcフォルダ内のコードでのみ確認できます。これらのベクトルタイルのデータはTippecanoeで生成しています。
 - また、事故発生箇所をクラスタリングしたベクトルタイルを読み込み円グラフで表示する方式のマップを、[ウェブ地図（円グラフ版）](https://kashiwa.co-place.com/cmap/ta-jc/)として公開し、そのソースコードをwebmap_clusterフォルダ内に載せています。なお、この方式の作成要領は[こちらのリポジトリ](https://github.com/sanskruthiya/ta-chiba2022)を合わせてご参照ください。
 
-This repository presents the geographic record of traffic accidents in Japan from 2019 to 2022.
+This repository presents the geographic record of traffic accidents in Japan from 2019 to 2023.
 
 The data is originally published by the National Police Agency in Japan.
 Here, the dataset is converted to vector-tile and GeoPackage format with a little arrangement from its original lat/lng coordinates 
