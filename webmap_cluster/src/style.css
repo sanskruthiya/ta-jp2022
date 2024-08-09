@@ -138,11 +138,12 @@ span.style01 {
 table.tablestyle02 {
     table-layout: auto; width: 100%;
     color:#111; font-size: 12px; font-weight: 500; font-family: Helvetica, "游ゴシック体", YuGothic, "YuGothic M", sans-serif;
-    border-collapse: collapse; border-spacing:0; border:1px solid #fff;
+    border-collapse: collapse; border-spacing:1; border:1px solid #eee;
 }
 
 table.tablestyle02 th, table.tablestyle02 td{
     padding: 4px; text-align:left;
+    border: 1px solid #999;
 }
 
 table.tablestyle02 tr:nth-child(odd){

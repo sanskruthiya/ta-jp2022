@@ -138,14 +138,12 @@ const map = new maplibregl.Map({
 map.on('load', () => {
     map.addSource('ta_point', {
         'type': 'vector',
-        //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_point.pmtiles',
         'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles?202408',
         "minzoom": 2,
         "maxzoom": 16,
     });
     map.addSource('ta_cluster', {
         'type': 'vector',
-        //'url': 'pmtiles://'+location.href+'app/pmtiles/ta_jp_flags_clustered.pmtiles',
         'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles?202408',
         "minzoom": 2,
         "maxzoom": 16,
@@ -283,7 +281,7 @@ map.on('load', () => {
             `
             <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden"><defs><clipPath id="clip0"><rect x="1159" y="256" width="28" height="28"/></clipPath><clipPath id="clip1"><rect x="1159" y="256" width="28" height="28"/></clipPath><clipPath id="clip2"><rect x="1160" y="259" width="23" height="24"/></clipPath><clipPath id="clip3"><rect x="1160" y="259" width="23" height="24"/></clipPath></defs><g clip-path="url(#clip0)" transform="translate(-1159 -256)"><g clip-path="url(#clip1)"><g clip-path="url(#clip2)"><path d="M1171.99 260.134C1178.1 260.134 1183.06 265.092 1183.06 271.208L1176.42 271.208C1176.42 268.762 1174.43 266.779 1171.99 266.779Z" stroke="#FFFFFF" stroke-width="1.14583" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" stroke-opacity="1" fill="${colors[0]}" fill-rule="evenodd" fill-opacity="1"/></g><g clip-path="url(#clip3)"><path d="M1183.06 271.208C1183.06 277.324 1178.1 282.282 1171.99 282.282 1165.87 282.282 1160.91 277.324 1160.91 271.208 1160.91 265.092 1165.87 260.134 1171.99 260.134L1171.99 266.779C1169.54 266.779 1167.56 268.762 1167.56 271.208 1167.56 273.655 1169.54 275.638 1171.99 275.638 1174.43 275.638 1176.42 273.655 1176.42 271.208Z" stroke="#FFFFFF" stroke-width="1.14583" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" stroke-opacity="1" fill="${colors[1]}" fill-rule="evenodd" fill-opacity="1"/></g></g></g></svg>
             `
-            +'<br>事故件数及び、<br>'+ categoryNames[target_category] +'</p>';//24歳以下が関連なども可能だが、当該事故の関係者が運転者か歩行者かデータ上不明なので留意が必要
+            +'<br>事故件数及び、<br>'+ categoryNames[target_category] +'</p>';
         }
         if (map.queryRenderedFeatures({layers: ['ta_record']})[0] !== undefined){
             legendContent += '<hr><span class="circle01"></span>：死亡事故</p><p><span class="circle02"></span>：負傷事故</p>';
@@ -312,15 +310,24 @@ map.on('load', () => {
         map.panTo(e.lngLat, {duration:1000});
         if (map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0] !== undefined){
             const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0];
+            
+            const all_count = Number(feat.properties['point_count']);
+            const recent_count = Number(feat.properties['recent_flag']);
+            const pedestrian_count = Number(feat.properties['pedestrian_flag']);
+            const night_count = Number(feat.properties['night_flag']);
+            const senior_count = Number(feat.properties['senior_flag']);
+            const case_count = Number(feat.properties['case_flag']);
+            
             let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
-            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+(feat.properties['point_count'] > 0 ? Number(feat.properties['point_count']).toLocaleString(): 1)+'件</span></p>';
+            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+(all_count > 0 ? all_count.toLocaleString(): 1)+'件</span></p>';
             popupContent += '<table class="tablestyle02">'+
-            '<tr><td>直近2年間の事故</td><td>'+Number(feat.properties['recent_flag']).toLocaleString()+'件</td></tr>'+
-            '<tr><td>歩行者が関連した事故</td><td>'+Number(feat.properties['pedestrian_flag']).toLocaleString()+'件</td></tr>'+
-            '<tr><td>夜間の事故</td><td>'+Number(feat.properties['night_flag']).toLocaleString()+'件</td></tr>'+
-            '<tr><td>65歳以上が関連した事故</td><td>'+Number(feat.properties['senior_flag']).toLocaleString()+'件</td></tr>'+
-            '<tr><td>死亡事故</td><td>'+Number(feat.properties['case_flag']).toLocaleString()+'件</td></tr>'+
+            '<tr><td>直近2年間の事故</td><td>'+recent_count.toLocaleString()+'件</td><td>'+Math.round((recent_count / all_count) * 100)+'%</td></tr>'+
+            '<tr><td>歩行者が関連した事故</td><td>'+pedestrian_count.toLocaleString()+'件</td><td>'+Math.round((pedestrian_count / all_count) * 100)+'%</td></tr>'+
+            '<tr><td>夜間の事故</td><td>'+night_count.toLocaleString()+'件</td><td>'+Math.round((night_count / all_count) * 100)+'%</td></tr>'+
+            '<tr><td>65歳以上が関連した事故</td><td>'+senior_count.toLocaleString()+'件</td><td>'+Math.round((senior_count / all_count) * 100)+'%</td></tr>'+
+            '<tr><td>死亡事故</td><td>'+case_count.toLocaleString()+'件</td><td>'+Math.round((case_count / all_count) * 100)+'%</td></tr>'+
             '</table>';
+            
             new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
             .setLngLat(e.lngLat)
             .setHTML(popupContent)
