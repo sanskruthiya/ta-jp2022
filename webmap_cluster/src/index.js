@@ -307,11 +307,12 @@ map.on('load', () => {
     });
     
     map.on('click', function(e){
-        map.panTo(e.lngLat, {duration:1000});
         if (map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0] !== undefined){
+            map.panTo(e.lngLat, {duration:1000});
+
             const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0];
             
-            const all_count = Number(feat.properties['point_count']);
+            const all_count = (Number(feat.properties['point_count']) > 0 ? Number(feat.properties['point_count']): 1);//クラスタのデータ構造の関係で1件だけのときにNaN値を取るため補正を入れる
             const recent_count = Number(feat.properties['recent_flag']);
             const pedestrian_count = Number(feat.properties['pedestrian_flag']);
             const night_count = Number(feat.properties['night_flag']);
@@ -319,7 +320,7 @@ map.on('load', () => {
             const case_count = Number(feat.properties['case_flag']);
             
             let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
-            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+(all_count > 0 ? all_count.toLocaleString(): 1)+'件</span></p>';
+            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+ all_count.toLocaleString() +'件</span></p>';
             popupContent += '<table class="tablestyle02">'+
             '<tr><td>直近2年間の事故</td><td>'+recent_count.toLocaleString()+'件</td><td>'+Math.round((recent_count / all_count) * 100)+'%</td></tr>'+
             '<tr><td>歩行者が関連した事故</td><td>'+pedestrian_count.toLocaleString()+'件</td><td>'+Math.round((pedestrian_count / all_count) * 100)+'%</td></tr>'+
@@ -333,6 +334,8 @@ map.on('load', () => {
             .setHTML(popupContent)
             .addTo(map);
         } else if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
+            map.panTo(e.lngLat, {duration:1000});
+
             const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0];
             const a_size = Number(feat.properties["負傷者数"])+Number(feat.properties["死者数"])
             let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
@@ -348,10 +351,13 @@ map.on('load', () => {
             .setHTML(popupContent)
             .addTo(map);
         } else {
+            //ポイントデータがない箇所をクリックした場合は何も動作を行わない
+            /*
             new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"240px"})
             .setLngLat(e.lngLat)
             .setHTML('<p class="remark"><a href="https://www.google.com/maps/@?api=1&map_action=map&center='+e.lngLat.wrap().lat.toFixed(5)+','+e.lngLat.wrap().lng.toFixed(5)+'&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank">この地点のGoogleマップへのリンク</a></p>')
             .addTo(map);
+            */
         }
     });
 
@@ -462,7 +468,7 @@ function donutSegment(start, end, r, r0, color) {
 }
 
 const attCntl = new maplibregl.AttributionControl({
-    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a>に基づき作成者が独自に加工（<a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">Github</a> | <a href="https://form.run/@party--1681740493" target="_blank">作成者への問合せフォーム</a> )',
+    customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a>に基づき作成者が独自に加工（<a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">GitHub</a> | <a href="https://form.run/@party--1681740493" target="_blank">作成者への問合せフォーム</a> )',
     compact: true
 });
 
@@ -544,7 +550,7 @@ const loc_options = {
 document.getElementById('icon-loader').style.display = 'none';
 
 let popup_loc = new maplibregl.Popup({anchor:"bottom", focusAfterOpen:false});
-let marker_loc = new maplibregl.Marker();
+let marker_loc = new maplibregl.Marker({draggable: true});
 let flag_loc = 0;
 
 document.getElementById('b_location').addEventListener('click', function () {
