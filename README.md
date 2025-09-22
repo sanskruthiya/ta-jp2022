@@ -1,8 +1,9 @@
 # Geographic Record of Traffic Accident in Japan 
 警察庁オープンデータに基づく、日本の交通事故統計情報(2019年〜2023年)の地理情報データです。
+ウェブ地図（円グラフ版）のみ、2024年のデータを追加しました。
 
 - ウェブ地図サンプル(2019年〜2022年のデータ)：[リンク](https://kashiwa.co-place.com/cmap/ta-jp/)
-- ウェブ地図（円グラフ版）(2019年〜2023年のデータ)：[リンク](https://kashiwa.co-place.com/cmap/ta-jc/)
+- ウェブ地図（円グラフ版）(2019年〜2024年のデータ)：[リンク](https://kashiwa.co-place.com/cmap/ta-jc/)
 - データ出典元：[警察庁オープンデータ](https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html)
 
 ## 概要

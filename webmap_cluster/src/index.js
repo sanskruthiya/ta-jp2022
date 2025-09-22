@@ -1,6 +1,8 @@
 import * as maplibregl from "maplibre-gl";
 import * as pmtiles from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw'
+import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import './style.css';
@@ -121,12 +123,12 @@ const viewset_hash = (location.hash ? location.hash.slice(1).split('/') : viewse
 
 const map = new maplibregl.Map({
     container: 'map',
-    style: 'https://tile2.openstreetmap.jp/styles/osm-bright-ja/style.json',
+    style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
     center: [viewset_hash[2],viewset_hash[1]],
     interactive: true,
     zoom: viewset_hash[0],
     minZoom: 2,
-    maxZoom: 21,
+    maxZoom: 20,
     maxPitch: 60,
     //maxBounds: [[110.0000, 20.0000],[170.0000, 50.0000]],
     bearing: init_bearing,
@@ -138,13 +140,13 @@ const map = new maplibregl.Map({
 map.on('load', () => {
     map.addSource('ta_point', {
         'type': 'vector',
-        'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles?202408',
+        'url': 'pmtiles://app/pmtiles/ta_jp_point.pmtiles?202509',
         "minzoom": 2,
         "maxzoom": 16,
     });
     map.addSource('ta_cluster', {
         'type': 'vector',
-        'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles?202408',
+        'url': 'pmtiles://app/pmtiles/ta_jp_flags_clustered.pmtiles?202509',
         "minzoom": 2,
         "maxzoom": 16,
     });
@@ -526,6 +528,19 @@ const geocoder = new MaplibreGeocoder(geocoderApi, {
     }
 );
 map.addControl(geocoder, 'top-right');
+
+const drawControl = new MaplibreTerradrawControl({
+    modes: ['render','point','linestring','polygon','rectangle','circle','freehand-linestring','select','delete-selection','delete'],
+    open: true,
+	
+});
+map.addControl(drawControl, 'bottom-right');
+
+const scaleCtrl = new maplibregl.ScaleControl({
+    maxWidth: 200,
+    unit: 'metric'
+});
+map.addControl(scaleCtrl, 'bottom-left');
 
 /*
 const geolocator = new maplibregl.GeolocateControl({
