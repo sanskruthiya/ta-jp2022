@@ -5,7 +5,13 @@ import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw'
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
+import { createClient } from '@supabase/supabase-js';
 import './style.css';
+
+// Supabase
+const supabaseUrl = 'https://frmcgmvjiaxasaabzukr.supabase.co';
+const supabaseKey = 'sb_publishable_tJpaOgP_kaLBvoBX4bm92A_JTvddJD4';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles",protocol.tile);
@@ -115,6 +121,11 @@ for (let i = 0; i < categoryLength; i++) {
 }
 
 const selected_category = document.querySelector('.category-select');
+
+// Comment mode state
+let commentMode = false;
+let commentVisible = true;
+const COMMENT_COOLDOWN_MS = 300000; // 5 minutes
 
 const init_bearing = 0;
 const init_pitch = 0;
@@ -240,6 +251,42 @@ map.on('load', () => {
             'text-color': '#111',
         }
     });
+
+    // User comments layer
+    map.addSource('user-comments', {
+        'type': 'geojson',
+        'data': { 'type': 'FeatureCollection', 'features': [] }
+    });
+    map.addLayer({
+        'id': 'user-comments-layer',
+        'type': 'circle',
+        'source': 'user-comments',
+        'paint': {
+            'circle-color': [
+                'match', ['get', 'category'],
+                'dangerous', '#e74c3c',
+                'near_miss', '#f39c12',
+                '#3498db'
+            ],
+            'circle-radius': 8,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff',
+            'circle-opacity': 0.9
+        }
+    });
+    map.addLayer({
+        'id': 'user-comments-label',
+        'type': 'symbol',
+        'source': 'user-comments',
+        'layout': {
+            'text-field': '\u{1F4AC}',
+            'text-size': 14,
+            'text-offset': [0, -1.5],
+            'text-allow-overlap': true
+        }
+    });
+
+    loadComments();
     
     //Create svg markers (see -> https://maplibre.org/maplibre-gl-js/docs/examples/cluster-html/)
     const markers = {};
@@ -309,6 +356,26 @@ map.on('load', () => {
     });
     
     map.on('click', function(e){
+        // Comment mode: show posting form
+        if (commentMode) {
+            showCommentForm(e.lngLat);
+            return;
+        }
+        // Show comment popup when clicking on a user comment
+        if (commentVisible && map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0] !== undefined){
+            const feat = map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0];
+            const props = feat.properties;
+            const catLabel = props.category === 'dangerous' ? '\u{26A0}\uFE0F 危険な交差点' : props.category === 'near_miss' ? '\u{1F4A5} ヒヤリハット' : '\u{1F4DD} その他';
+            const dateStr = new Date(props.created_at).toLocaleDateString('ja-JP');
+            let popupContent = '<p class="comment-category">' + catLabel + '</p>';
+            popupContent += '<p class="comment-text">' + escapeHtml(props.comment_text) + '</p>';
+            popupContent += '<p class="comment-meta">' + escapeHtml(props.user_name) + ' | ' + dateStr + '</p>';
+            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"260px"})
+                .setLngLat(feat.geometry.coordinates)
+                .setHTML(popupContent)
+                .addTo(map);
+            return;
+        }
         if (map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0] !== undefined){
             map.panTo(e.lngLat, {duration:1000});
 
@@ -624,4 +691,155 @@ document.getElementById('b_location').addEventListener('click', function () {
             loc_options
         );
     }
+});
+
+// === Comment Feature ===
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function getCategoryLabel(cat) {
+    return cat === 'dangerous' ? '⚠️ 危険な交差点' : cat === 'near_miss' ? '💥 ヒヤリハット' : '📝 その他';
+}
+
+async function loadComments() {
+    try {
+        const { data, error } = await supabase
+            .from('user_comments')
+            .select('*')
+            .eq('status', 'approved');
+        if (error) { console.error('コメント取得エラー:', error); return; }
+        const geojson = {
+            type: 'FeatureCollection',
+            features: (data || []).map(c => ({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [Number(c.lng), Number(c.lat)] },
+                properties: { id: c.id, category: c.category, user_name: c.user_name, comment_text: c.comment_text, created_at: c.created_at }
+            }))
+        };
+        if (map.getSource('user-comments')) {
+            map.getSource('user-comments').setData(geojson);
+        }
+    } catch (e) {
+        console.error('コメント読み込みエラー:', e);
+    }
+}
+
+function showCommentForm(lngLat) {
+    const formHtml = `
+        <div class="comment-form-container">
+            <p class="comment-form-title">📍 この場所についてコメント</p>
+            <form id="comment-form">
+                <input type="text" name="hp_field" style="display:none" tabindex="-1" autocomplete="off">
+                <label>カテゴリ<span class="required">*</span></label>
+                <select name="category" required>
+                    <option value="dangerous">⚠️ 危険な交差点</option>
+                    <option value="near_miss">💥 ヒヤリハット</option>
+                    <option value="other">📝 その他</option>
+                </select>
+                <label>ニックネーム</label>
+                <input type="text" name="user_name" placeholder="匿名" maxlength="100">
+                <label>コメント<span class="required">*</span>（200文字以内）</label>
+                <textarea name="comment_text" required maxlength="200" rows="4" placeholder="この場所で感じた危険やヒヤリハット体験を入力してください"></textarea>
+                <div class="comment-form-buttons">
+                    <button type="submit" class="btn-submit">投稿する</button>
+                    <button type="button" class="btn-cancel" id="comment-cancel">キャンセル</button>
+                </div>
+                <p class="comment-form-note">※投稿は管理者の確認後に地図上に表示されます</p>
+            </form>
+        </div>`;
+
+    const popup = new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"300px"})
+        .setLngLat(lngLat)
+        .setHTML(formHtml)
+        .addTo(map);
+
+    popup.on('close', () => {
+        setCommentMode(false);
+    });
+
+    const cancelBtn = document.getElementById('comment-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => { popup.remove(); });
+    }
+
+    const form = document.getElementById('comment-form');
+    if (form) {
+        form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            // Honeypot check
+            if (form.hp_field.value) { popup.remove(); return; }
+            // Cooldown check
+            const lastPost = localStorage.getItem('comment_last_post');
+            if (lastPost && (Date.now() - Number(lastPost)) < COMMENT_COOLDOWN_MS) {
+                const waitMin = Math.ceil((COMMENT_COOLDOWN_MS - (Date.now() - Number(lastPost))) / 60000);
+                alert('連続投稿はできません。あと約' + waitMin + '分お待ちください。');
+                return;
+            }
+            const submitBtn = form.querySelector('.btn-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '送信中...';
+
+            const { error } = await supabase
+                .from('user_comments')
+                .insert({
+                    lng: lngLat.lng,
+                    lat: lngLat.lat,
+                    category: form.category.value,
+                    user_name: form.user_name.value.trim() || '匿名',
+                    comment_text: form.comment_text.value.trim(),
+                    status: 'pending'
+                });
+
+            if (error) {
+                console.error('コメント投稿エラー:', error);
+                alert('投稿に失敗しました。時間をおいて再度お試しください。');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '投稿する';
+            } else {
+                localStorage.setItem('comment_last_post', String(Date.now()));
+                popup.setHTML('<div class="comment-form-container"><p class="comment-form-title">✅ 投稿ありがとうございます</p><p class="comment-form-note">管理者の確認後に地図上に表示されます。</p></div>');
+                setTimeout(() => { popup.remove(); }, 3000);
+            }
+        });
+    }
+}
+
+function setCommentMode(enabled) {
+    commentMode = enabled;
+    const btn = document.getElementById('b_comment_mode');
+    if (enabled) {
+        btn.style.backgroundColor = '#e74c3c';
+        btn.style.color = '#fff';
+        btn.textContent = '投稿モード解除';
+        map.getCanvas().style.cursor = 'crosshair';
+    } else {
+        btn.style.backgroundColor = '#fff';
+        btn.style.color = '#333';
+        btn.textContent = 'コメント投稿';
+        map.getCanvas().style.cursor = '';
+    }
+}
+
+document.getElementById('b_comment_mode').addEventListener('click', function () {
+    setCommentMode(!commentMode);
+});
+
+document.getElementById('b_comment_toggle').addEventListener('click', function () {
+    commentVisible = !commentVisible;
+    const vis = commentVisible ? 'visible' : 'none';
+    map.setLayoutProperty('user-comments-layer', 'visibility', vis);
+    map.setLayoutProperty('user-comments-label', 'visibility', vis);
+    this.style.backgroundColor = commentVisible ? '#fff' : '#ccc';
+    this.style.color = commentVisible ? '#333' : '#999';
+});
+
+// Cursor style for comment markers
+map.on('mouseenter', 'user-comments-layer', function () {
+    if (!commentMode) map.getCanvas().style.cursor = 'pointer';
+});
+map.on('mouseleave', 'user-comments-layer', function () {
+    if (!commentMode) map.getCanvas().style.cursor = '';
 });
