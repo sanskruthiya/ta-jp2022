@@ -12,20 +12,92 @@
     <body>
         <div id="map">
         </div>
-        <div id="selectbox" class="select-overlay">
-            <select id="category-id" name="category-id" class="category-select"></select>
+        <div class="hamburger-container">
+            <button type="button" class="hamburger-button" id="menu-toggle" aria-label="メニューを開く">
+                <div class="hamburger-icon" id="hamburger-icon">
+                    <span></span><span></span><span></span>
+                </div>
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu" style="display:none;">
+                <button type="button" class="menu-item" id="menu-about">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    このマップについて
+                </button>
+                <button type="button" class="menu-item" id="b_location">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    現在地を確認
+                </button>
+                <button type="button" class="menu-item" id="b_comment_mode">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    コメント投稿
+                </button>
+                <div class="menu-toggle-row" id="b_comment_toggle">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span class="menu-toggle-label">コメント表示</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="comment-toggle-check" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="menu-section" id="selectbox">
+                    <label class="menu-section-label">円グラフ表示項目</label>
+                    <select id="category-id" name="category-id" class="category-select"></select>
+                </div>
+                <div class="menu-section" id="legend-section">
+                    <div id="ta-legend"></div>
+                </div>
+            </div>
         </div>
-        <div id="legend" class="legend-overlay">
-            <fieldset>
-                <label>2019年〜2024年<br>交通事故発生箇所</label>
-                <a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">出典（警察庁）</a>
-                <div id="ta-legend"></div>
-            </fieldset>
+        <div class="about-overlay" id="about-overlay" style="display:none;">
+            <div class="about-content">
+                <div class="about-header">
+                    <h2>交通事故発生箇所マップ</h2>
+                    <button type="button" class="close-button" id="about-close" aria-label="閉じる">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <p>日本全国の交通事故発生箇所と、歩行者が巻き込まれた事故などの各種比率について、警察庁の公開データに基づき2019年〜2024年分（約190万件）を地図上に円グラフで表示しています。</p>
+                <p>地図上の円グラフをクリック/タップすると、そのエリアの事故統計が表示されます。十分に拡大すると個別の事故記録が確認できます。</p>
+                <h3 class="about-section-title">コメント投稿機能</h3>
+                <p>メニューの「コメント投稿」から投稿モードに切り替え、地図上の任意の場所をクリックしてコメントを投稿できます。投稿されたコメントは管理者の確認後に地図上に表示されます。「コメント表示」で表示/非表示を切り替えられます。</p>
+                <hr class="about-divider">
+                <ul class="about-links-list">
+                    <li>出典：<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a></li>
+                    <li><a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank" rel="noopener">GitHub</a></li>
+                    <li><a href="#" id="open-contact" class="contact-link">作成者への問合せフォーム</a></li>
+                </ul>
+            </div>
         </div>
-        <div id="buttons">
-            <button type="button" class="btnctrl" id="b_location">現在地を確認</button>
-            <button type="button" class="btnctrl" id="b_comment_mode">コメント投稿</button>
-            <button type="button" class="btnctrl" id="b_comment_toggle">コメント表示</button>
+        <div class="contact-overlay" id="contact-overlay" style="display:none;">
+            <div class="about-content">
+                <div class="about-header">
+                    <h2>お問い合わせ</h2>
+                    <button type="button" class="close-button" id="contact-close" aria-label="閉じる">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <form id="contact-form" action="https://formspree.io/f/mpwjnvdr" method="POST">
+                    <input type="hidden" name="_source" value="交通事故発生箇所マップ">
+                    <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
+                    <label class="contact-label">お名前<span class="required">*</span></label>
+                    <input type="text" name="name" required class="contact-input" placeholder="お名前">
+                    <label class="contact-label">メールアドレス<span class="required">*</span></label>
+                    <input type="email" name="email" required class="contact-input" placeholder="example@mail.com">
+                    <label class="contact-label">件名</label>
+                    <input type="text" name="_subject" class="contact-input" placeholder="件名">
+                    <label class="contact-label">お問い合わせ内容<span class="required">*</span></label>
+                    <textarea name="message" required class="contact-textarea" rows="5" placeholder="お問い合わせ内容を入力してください"></textarea>
+                    <button type="submit" class="contact-submit">送信する</button>
+                </form>
+                <p id="contact-status" class="contact-status" style="display:none;"></p>
+            </div>
+        </div>
+        <div class="modal-backdrop" id="modal-backdrop" style="display:none;"></div>
+        <div class="comment-mode-banner" id="comment-mode-banner" style="display:none;">
+            <span class="banner-icon">📍</span>
+            <span>コメント投稿モード — 地図上をクリックして場所を選択</span>
+            <button type="button" id="banner-cancel" class="banner-close" aria-label="解除">✕</button>
         </div>
         <div id="icon-loader"></div>
         <script src="app/main.js?20250921"></script>

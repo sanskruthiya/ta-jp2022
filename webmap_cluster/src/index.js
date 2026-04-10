@@ -1,8 +1,8 @@
 import * as maplibregl from "maplibre-gl";
 import * as pmtiles from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw'
-import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
+//import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw'
+//import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { createClient } from '@supabase/supabase-js';
@@ -116,7 +116,7 @@ for (let i = 0; i < categoryLength; i++) {
     const selectCategory = document.getElementById('category-id');
     const optionName = document.createElement('option');
     optionName.value = categoryNames[i];
-    optionName.textContent = '円グラフ: ' + categoryNames[i];
+    optionName.textContent = categoryNames[i];
     selectCategory.appendChild(optionName);
 }
 
@@ -125,7 +125,22 @@ const selected_category = document.querySelector('.category-select');
 // Comment mode state
 let commentMode = false;
 let commentVisible = true;
-const COMMENT_COOLDOWN_MS = 300000; // 5 minutes
+let commentPinMarker = null;
+const COMMENT_COOLDOWN_MS = 30000; // 30 seconds
+
+function createCommentPinElement() {
+    const el = document.createElement('div');
+    el.className = 'comment-pin';
+    el.innerHTML = '<div class="comment-pin-pulse"></div><div class="comment-pin-dot"></div>';
+    return el;
+}
+
+function removeCommentPin() {
+    if (commentPinMarker) {
+        commentPinMarker.remove();
+        commentPinMarker = null;
+    }
+}
 
 const init_bearing = 0;
 const init_pitch = 0;
@@ -144,7 +159,7 @@ const map = new maplibregl.Map({
     //maxBounds: [[110.0000, 20.0000],[170.0000, 50.0000]],
     bearing: init_bearing,
     pitch: init_pitch,
-    attributionControl:false,
+    attributionControl: true,
     hash: true
 });
 
@@ -264,8 +279,8 @@ map.on('load', () => {
         'paint': {
             'circle-color': [
                 'match', ['get', 'category'],
-                'dangerous', '#e74c3c',
-                'near_miss', '#f39c12',
+                'pedestrian', '#27ae60',
+                'driver', '#e67e22',
                 '#3498db'
             ],
             'circle-radius': 8,
@@ -335,7 +350,20 @@ map.on('load', () => {
         if (map.queryRenderedFeatures({layers: ['ta_record']})[0] !== undefined){
             legendContent += '<hr><span class="circle01"></span>：死亡事故</p><p><span class="circle02"></span>：負傷事故</p>';
         }
+        if (commentVisible) {
+            legendContent += '<hr><p class="legend-comment-title">コメント投稿</p>';
+            legendContent += '<p><span class="legend-dot" style="background:#27ae60"></span>🚶 歩行者目線</p>';
+            legendContent += '<p><span class="legend-dot" style="background:#e67e22"></span>🚗 ドライバー目線</p>';
+            legendContent += '<p><span class="legend-dot" style="background:#3498db"></span>📝 その他</p>';
+        }
         ta_legend.innerHTML = legendContent;
+        // Hide dropdown when zoomed in past cluster level
+        const selectbox = document.getElementById('selectbox');
+        if (map.getZoom() >= 16) {
+            selectbox.style.display = 'none';
+        } else {
+            selectbox.style.display = '';
+        }
     }
 
     // after the GeoJSON data is loaded, update markers on the screen and do so on every map move/moveend
@@ -365,10 +393,9 @@ map.on('load', () => {
         if (commentVisible && map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0] !== undefined){
             const feat = map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0];
             const props = feat.properties;
-            const catLabel = props.category === 'dangerous' ? '\u{26A0}\uFE0F 危険な交差点' : props.category === 'near_miss' ? '\u{1F4A5} ヒヤリハット' : '\u{1F4DD} その他';
+            const catIcon = getCategoryIcon(props.category);
             const dateStr = new Date(props.created_at).toLocaleDateString('ja-JP');
-            let popupContent = '<p class="comment-category">' + catLabel + '</p>';
-            popupContent += '<p class="comment-text">' + escapeHtml(props.comment_text) + '</p>';
+            let popupContent = '<p class="comment-text">' + catIcon + ' ' + escapeHtml(props.comment_text) + '</p>';
             popupContent += '<p class="comment-meta">' + escapeHtml(props.user_name) + ' | ' + dateStr + '</p>';
             new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"260px"})
                 .setLngLat(feat.geometry.coordinates)
@@ -390,6 +417,7 @@ map.on('load', () => {
             
             let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
             popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+ all_count.toLocaleString() +'件</span></p>';
+            popupContent += '<p class="remark zoom-link" data-lng="'+feat.geometry.coordinates[0]+'" data-lat="'+feat.geometry.coordinates[1]+'">🔍 この場所を拡大表示</p>';
             popupContent += '<table class="tablestyle02">'+
             '<tr><td>直近2年間の事故</td><td>'+recent_count.toLocaleString()+'件</td><td>'+Math.round((recent_count / all_count) * 100)+'%</td></tr>'+
             '<tr><td>歩行者が関連した事故</td><td>'+pedestrian_count.toLocaleString()+'件</td><td>'+Math.round((pedestrian_count / all_count) * 100)+'%</td></tr>'+
@@ -398,10 +426,17 @@ map.on('load', () => {
             '<tr><td>死亡事故</td><td>'+case_count.toLocaleString()+'件</td><td>'+Math.round((case_count / all_count) * 100)+'%</td></tr>'+
             '</table>';
             
-            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
+            const popup = new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
             .setLngLat(e.lngLat)
             .setHTML(popupContent)
             .addTo(map);
+
+            popup.getElement().querySelector('.zoom-link').addEventListener('click', function () {
+                const lng = parseFloat(this.dataset.lng);
+                const lat = parseFloat(this.dataset.lat);
+                popup.remove();
+                map.flyTo({ center: [lng, lat], zoom: 17, duration: 1500 });
+            });
         } else if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
             map.panTo(e.lngLat, {duration:1000});
 
@@ -535,23 +570,25 @@ function donutSegment(start, end, r, r0, color) {
         `" fill="${color}" fill-opacity="0.8"/>`
     ].join(' ');
 }
-
+/*
 const attCntl = new maplibregl.AttributionControl({
     customAttribution: '<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a>に基づき作成者が独自に加工（<a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank">GitHub</a> | <a href="https://form.run/@party--1681740493" target="_blank">作成者への問合せフォーム</a> )',
     compact: true
 });
 
 map.addControl(attCntl, 'bottom-right');
-
+*/
 const geocoderApi = {
     forwardGeocode: async (config) => {
         const features = [];
         try {
             const request =
         `https://nominatim.openstreetmap.org/search?q=${
-            config.query
-        }&format=geojson&polygon_geojson=1&addressdetails=1`;
-            const response = await fetch(request);
+            encodeURIComponent(config.query)
+        }&format=geojson&polygon_geojson=1&addressdetails=1&countrycodes=jp&limit=5&accept-language=ja`;
+            const response = await fetch(request, {
+                headers: { 'User-Agent': 'ta-jp-webmap' }
+            });
             const geojson = await response.json();
             for (const feature of geojson.features) {
                 const center = [
@@ -596,12 +633,14 @@ const geocoder = new MaplibreGeocoder(geocoderApi, {
 );
 map.addControl(geocoder, 'top-right');
 
+/*
 const drawControl = new MaplibreTerradrawControl({
     modes: ['render','point','linestring','polygon','rectangle','circle','freehand-linestring','select','delete-selection','delete'],
     open: true,
 	
 });
 map.addControl(drawControl, 'bottom-right');
+*/
 
 const scaleCtrl = new maplibregl.ScaleControl({
     maxWidth: 200,
@@ -636,6 +675,7 @@ let marker_loc = new maplibregl.Marker({draggable: true});
 let flag_loc = 0;
 
 document.getElementById('b_location').addEventListener('click', function () {
+    if (typeof closeMenu === 'function') closeMenu();
     this.setAttribute("disabled", true);
     if (flag_loc > 0) {
         marker_loc.remove();
@@ -700,8 +740,8 @@ function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
-function getCategoryLabel(cat) {
-    return cat === 'dangerous' ? '⚠️ 危険な交差点' : cat === 'near_miss' ? '💥 ヒヤリハット' : '📝 その他';
+function getCategoryIcon(cat) {
+    return cat === 'pedestrian' ? '🚶' : cat === 'driver' ? '🚗' : '📝';
 }
 
 async function loadComments() {
@@ -733,14 +773,14 @@ function showCommentForm(lngLat) {
             <p class="comment-form-title">📍 この場所についてコメント</p>
             <form id="comment-form">
                 <input type="text" name="hp_field" style="display:none" tabindex="-1" autocomplete="off">
-                <label>カテゴリ<span class="required">*</span></label>
+                <label>投稿者様の立場<span class="required">*</span></label>
                 <select name="category" required>
-                    <option value="dangerous">⚠️ 危険な交差点</option>
-                    <option value="near_miss">💥 ヒヤリハット</option>
+                    <option value="pedestrian">🚶 歩行者目線</option>
+                    <option value="driver">🚗 ドライバー目線</option>
                     <option value="other">📝 その他</option>
                 </select>
                 <label>ニックネーム</label>
-                <input type="text" name="user_name" placeholder="匿名" maxlength="100">
+                <input type="text" name="user_name" placeholder="匿名" maxlength="20">
                 <label>コメント<span class="required">*</span>（200文字以内）</label>
                 <textarea name="comment_text" required maxlength="200" rows="4" placeholder="この場所で感じた危険やヒヤリハット体験を入力してください"></textarea>
                 <div class="comment-form-buttons">
@@ -751,12 +791,19 @@ function showCommentForm(lngLat) {
             </form>
         </div>`;
 
-    const popup = new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"300px"})
+    // Place temporary pin marker
+    removeCommentPin();
+    commentPinMarker = new maplibregl.Marker({ element: createCommentPinElement() })
+        .setLngLat(lngLat)
+        .addTo(map);
+
+    const popup = new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"340px", offset:18})
         .setLngLat(lngLat)
         .setHTML(formHtml)
         .addTo(map);
 
     popup.on('close', () => {
+        removeCommentPin();
         setCommentMode(false);
     });
 
@@ -810,30 +857,125 @@ function showCommentForm(lngLat) {
 function setCommentMode(enabled) {
     commentMode = enabled;
     const btn = document.getElementById('b_comment_mode');
+    const banner = document.getElementById('comment-mode-banner');
     if (enabled) {
-        btn.style.backgroundColor = '#e74c3c';
-        btn.style.color = '#fff';
-        btn.textContent = '投稿モード解除';
+        btn.classList.add('active-mode');
+        banner.style.display = '';
         map.getCanvas().style.cursor = 'crosshair';
     } else {
-        btn.style.backgroundColor = '#fff';
-        btn.style.color = '#333';
-        btn.textContent = 'コメント投稿';
+        btn.classList.remove('active-mode');
+        banner.style.display = 'none';
         map.getCanvas().style.cursor = '';
+        removeCommentPin();
     }
 }
 
-document.getElementById('b_comment_mode').addEventListener('click', function () {
-    setCommentMode(!commentMode);
+document.getElementById('banner-cancel').addEventListener('click', function () {
+    setCommentMode(false);
 });
 
-document.getElementById('b_comment_toggle').addEventListener('click', function () {
-    commentVisible = !commentVisible;
+// Hamburger menu toggle
+const menuToggle = document.getElementById('menu-toggle');
+const dropdownMenu = document.getElementById('dropdown-menu');
+const hamburgerIcon = document.getElementById('hamburger-icon');
+let menuOpen = false;
+
+function toggleMenu() {
+    menuOpen = !menuOpen;
+    dropdownMenu.style.display = menuOpen ? '' : 'none';
+    hamburgerIcon.classList.toggle('active', menuOpen);
+}
+
+function closeMenu() {
+    menuOpen = false;
+    dropdownMenu.style.display = 'none';
+    hamburgerIcon.classList.remove('active');
+}
+
+menuToggle.addEventListener('click', toggleMenu);
+
+// Close menu when clicking outside
+document.addEventListener('click', function (e) {
+    if (menuOpen && !document.querySelector('.hamburger-container').contains(e.target)) {
+        closeMenu();
+    }
+});
+
+// About modal
+document.getElementById('menu-about').addEventListener('click', function () {
+    document.getElementById('about-overlay').style.display = '';
+    document.getElementById('modal-backdrop').style.display = '';
+    closeMenu();
+});
+
+document.getElementById('about-close').addEventListener('click', function () {
+    document.getElementById('about-overlay').style.display = 'none';
+    document.getElementById('modal-backdrop').style.display = 'none';
+});
+
+document.getElementById('modal-backdrop').addEventListener('click', function () {
+    document.getElementById('about-overlay').style.display = 'none';
+    document.getElementById('contact-overlay').style.display = 'none';
+    this.style.display = 'none';
+});
+
+// Contact form modal
+document.getElementById('open-contact').addEventListener('click', function (e) {
+    e.preventDefault();
+    document.getElementById('about-overlay').style.display = 'none';
+    document.getElementById('contact-overlay').style.display = '';
+    document.getElementById('modal-backdrop').style.display = '';
+});
+
+document.getElementById('contact-close').addEventListener('click', function () {
+    document.getElementById('contact-overlay').style.display = 'none';
+    document.getElementById('modal-backdrop').style.display = 'none';
+});
+
+document.getElementById('contact-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = this;
+    const submitBtn = form.querySelector('.contact-submit');
+    const status = document.getElementById('contact-status');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中...';
+    status.style.display = 'none';
+    try {
+        const res = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+            status.textContent = '送信しました。ありがとうございます。';
+            status.className = 'contact-status success';
+            status.style.display = '';
+            form.reset();
+        } else {
+            throw new Error();
+        }
+    } catch {
+        status.textContent = '送信に失敗しました。時間を置いて再度お試しください。';
+        status.className = 'contact-status error';
+        status.style.display = '';
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = '送信する';
+});
+
+// Comment mode
+document.getElementById('b_comment_mode').addEventListener('click', function () {
+    setCommentMode(!commentMode);
+    closeMenu();
+});
+
+// Comment toggle
+const commentToggleCheck = document.getElementById('comment-toggle-check');
+commentToggleCheck.addEventListener('change', function () {
+    commentVisible = this.checked;
     const vis = commentVisible ? 'visible' : 'none';
     map.setLayoutProperty('user-comments-layer', 'visibility', vis);
     map.setLayoutProperty('user-comments-label', 'visibility', vis);
-    this.style.backgroundColor = commentVisible ? '#fff' : '#ccc';
-    this.style.color = commentVisible ? '#333' : '#999';
 });
 
 // Cursor style for comment markers
