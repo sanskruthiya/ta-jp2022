@@ -383,86 +383,158 @@ map.on('load', () => {
         generateLegend();
     });
     
+    // === Popup content builders ===
+    function buildStatRow(label, count, total) {
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return '<div class="stat-row">' +
+            '<span class="stat-label">' + label + '</span>' +
+            '<span class="stat-value">' + count.toLocaleString() + '件</span>' +
+            '<span class="stat-bar-container"><span class="stat-bar" style="width:' + pct + '%"></span></span>' +
+            '<span class="stat-pct">' + pct + '%</span>' +
+            '</div>';
+    }
+
+    function buildClusterContent(feat) {
+        const p = feat.properties;
+        const all_count = (Number(p['point_count']) > 0 ? Number(p['point_count']) : 1);
+        const coords = feat.geometry.coordinates;
+        let html = '<span class="carousel-type-badge type-cluster">📊 エリア集計</span>';
+        html += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">' + all_count.toLocaleString() + '件</span></p>';
+        html += '<div class="popup-actions">';
+        html += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
+        html += '<span class="popup-action-btn zoom-link" data-lng="' + coords[0] + '" data-lat="' + coords[1] + '">🔍 この場所にズーム</span>';
+        html += '</div>';
+        html += buildStatRow('死亡事故', Number(p['case_flag']), all_count);
+        html += buildStatRow('歩行者関連の事故', Number(p['pedestrian_flag']), all_count);
+        html += buildStatRow('65歳以上関連の事故', Number(p['senior_flag']), all_count);
+        html += buildStatRow('夜間の事故', Number(p['night_flag']), all_count);
+        html += buildStatRow('直近2年間の事故', Number(p['recent_flag']), all_count);
+        return html;
+    }
+
+    function buildRecordContent(feat) {
+        const p = feat.properties;
+        const coords = feat.geometry.coordinates;
+        const a_size = Number(p["負傷者数"]) + Number(p["死者数"]);
+        let html = '<span class="carousel-type-badge type-record">🚗 事故記録</span>';
+        html += '<div class="popup-actions">';
+        html += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
+        html += '</div>';
+        html += '<p class="tipstyle02"><span class="style01">' + p["発生日時　　年"] + '年' + p["発生日時　　月"] + '月' + p["発生日時　　日"] + '日（' + getDay(p["曜日(発生年月日)"]) + (p["祝日(発生年月日)"] === "0" ? '・祝' : '') + '）';
+        html += p["発生日時　　時"] + '時' + p["発生日時　　分"] + '分頃</span>に発生した<span class="style01">' + getType(p["事故類型"]) + 'の事故</span>で、';
+        html += (p["負傷者数"] != "0" ? '<span class="style01">' + p["負傷者数"] + '名が負傷</span>' : '') + (p["死者数"] != "0" ? " " : "した。") + (p["死者数"] != "0" ? '<span class="style01">' + p["死者数"] + '名が亡くなった</span>。' : '') + '<br>';
+        html += '当事者の年齢層は<span class="style01">' + getAge(p["年齢（当事者A）"]) + (getAge(p["年齢（当事者B）"]) != "-" ? 'と、' + getAge(p["年齢（当事者B）"]) : '') + '</span>' + (a_size > 2 ? '（本票記載の２名のみ表示）' : '') + '。<br>';
+        html += '現場は<span class="style01">' + getRoadtype(p["道路線形"]) + (getLocation(p["道路形状"]) != "交差点" ? getLocation(p["道路形状"]) : getSignal(p["信号機"]) + "交差点") + '</span>で、';
+        html += '当時の天候は<span class="style01">' + getWeather(p["天候"]) + '</span>、路面状態は<span class="style01">' + getCondition(p["路面状態"]) + '</span>。</p>';
+        return html;
+    }
+
+    function buildCommentContent(feat) {
+        const p = feat.properties;
+        const coords = feat.geometry.coordinates;
+        const catIcon = getCategoryIcon(p.category);
+        const dateStr = new Date(p.created_at).toLocaleDateString('ja-JP');
+        let html = '<span class="carousel-type-badge type-comment">💬 コメント</span>';
+        html += '<div class="popup-actions">';
+        html += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
+        html += '</div>';
+        html += '<p class="comment-text">' + catIcon + ' ' + escapeHtml(p.comment_text) + '</p>';
+        html += '<p class="comment-meta">' + escapeHtml(p.user_name) + ' | ' + dateStr + '</p>';
+        return html;
+    }
+
+    // === Carousel popup ===
+    let carouselPages = [];
+    let carouselIndex = 0;
+    let carouselPopup = null;
+
+    function showCarouselPage() {
+        if (!carouselPopup || carouselPages.length === 0) return;
+        const total = carouselPages.length;
+        let navHtml = '';
+        if (total > 1) {
+            navHtml = '<div class="carousel-nav">' +
+                '<button type="button" onclick="window._carouselPrev()">◀</button>' +
+                '<span class="carousel-indicator">' + (carouselIndex + 1) + ' / ' + total + '</span>' +
+                '<button type="button" onclick="window._carouselNext()">▶</button>' +
+                '</div>';
+        }
+        const html = navHtml + '<div class="carousel-body">' + carouselPages[carouselIndex].html + '</div>';
+        carouselPopup.setHTML(html);
+        // Re-attach zoom-link handler if present
+        const el = carouselPopup.getElement();
+        if (el) {
+            const zoomLink = el.querySelector('.zoom-link');
+            if (zoomLink) {
+                zoomLink.addEventListener('click', function () {
+                    const lng = parseFloat(this.dataset.lng);
+                    const lat = parseFloat(this.dataset.lat);
+                    carouselPopup.remove();
+                    map.flyTo({ center: [lng, lat], zoom: 17, duration: 1500 });
+                });
+            }
+        }
+    }
+
+    window._carouselPrev = function () {
+        carouselIndex = (carouselIndex - 1 + carouselPages.length) % carouselPages.length;
+        showCarouselPage();
+    };
+    window._carouselNext = function () {
+        carouselIndex = (carouselIndex + 1) % carouselPages.length;
+        showCarouselPage();
+    };
+
     map.on('click', function(e){
         // Comment mode: show posting form
         if (commentMode) {
             showCommentForm(e.lngLat);
             return;
         }
-        // Show comment popup when clicking on a user comment
-        if (commentVisible && map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0] !== undefined){
-            const feat = map.queryRenderedFeatures(e.point, {layers: ['user-comments-layer']})[0];
-            const props = feat.properties;
-            const catIcon = getCategoryIcon(props.category);
-            const dateStr = new Date(props.created_at).toLocaleDateString('ja-JP');
-            let popupContent = '<p class="comment-text">' + catIcon + ' ' + escapeHtml(props.comment_text) + '</p>';
-            popupContent += '<p class="comment-meta">' + escapeHtml(props.user_name) + ' | ' + dateStr + '</p>';
-            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"c-popup", maxWidth:"260px"})
-                .setLngLat(feat.geometry.coordinates)
-                .setHTML(popupContent)
-                .addTo(map);
-            return;
+
+        // Collect all features at click point from all relevant layers
+        const layers = [];
+        if (map.getLayer('ta_pseudo')) layers.push('ta_pseudo');
+        if (map.getLayer('ta_record')) layers.push('ta_record');
+        if (commentVisible && map.getLayer('user-comments-layer')) layers.push('user-comments-layer');
+
+        const allFeatures = map.queryRenderedFeatures(e.point, { layers: layers });
+        if (allFeatures.length === 0) return;
+
+        // Build pages: group by type, order: cluster → record → comment
+        carouselPages = [];
+        const seenComments = new Set();
+        for (const feat of allFeatures) {
+            if (feat.layer.id === 'ta_pseudo') {
+                carouselPages.push({ type: 'cluster', html: buildClusterContent(feat) });
+            }
         }
-        if (map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0] !== undefined){
-            map.panTo(e.lngLat, {duration:1000});
-
-            const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_pseudo']})[0];
-            
-            const all_count = (Number(feat.properties['point_count']) > 0 ? Number(feat.properties['point_count']): 1);//クラスタのデータ構造の関係で1件だけのときにNaN値を取るため補正を入れる
-            const recent_count = Number(feat.properties['recent_flag']);
-            const pedestrian_count = Number(feat.properties['pedestrian_flag']);
-            const night_count = Number(feat.properties['night_flag']);
-            const senior_count = Number(feat.properties['senior_flag']);
-            const case_count = Number(feat.properties['case_flag']);
-            
-            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
-            popupContent += '<p class="tipstyle02">このエリアの事故件数：<span class="style01">'+ all_count.toLocaleString() +'件</span></p>';
-            popupContent += '<p class="remark zoom-link" data-lng="'+feat.geometry.coordinates[0]+'" data-lat="'+feat.geometry.coordinates[1]+'">🔍 この場所を拡大表示</p>';
-            popupContent += '<table class="tablestyle02">'+
-            '<tr><td>直近2年間の事故</td><td>'+recent_count.toLocaleString()+'件</td><td>'+Math.round((recent_count / all_count) * 100)+'%</td></tr>'+
-            '<tr><td>歩行者が関連した事故</td><td>'+pedestrian_count.toLocaleString()+'件</td><td>'+Math.round((pedestrian_count / all_count) * 100)+'%</td></tr>'+
-            '<tr><td>夜間の事故</td><td>'+night_count.toLocaleString()+'件</td><td>'+Math.round((night_count / all_count) * 100)+'%</td></tr>'+
-            '<tr><td>65歳以上が関連した事故</td><td>'+senior_count.toLocaleString()+'件</td><td>'+Math.round((senior_count / all_count) * 100)+'%</td></tr>'+
-            '<tr><td>死亡事故</td><td>'+case_count.toLocaleString()+'件</td><td>'+Math.round((case_count / all_count) * 100)+'%</td></tr>'+
-            '</table>';
-            
-            const popup = new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
-            .setLngLat(e.lngLat)
-            .setHTML(popupContent)
-            .addTo(map);
-
-            popup.getElement().querySelector('.zoom-link').addEventListener('click', function () {
-                const lng = parseFloat(this.dataset.lng);
-                const lat = parseFloat(this.dataset.lat);
-                popup.remove();
-                map.flyTo({ center: [lng, lat], zoom: 17, duration: 1500 });
-            });
-        } else if (map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0] !== undefined){
-            map.panTo(e.lngLat, {duration:1000});
-
-            const feat = map.queryRenderedFeatures(e.point, {layers: ['ta_record']})[0];
-            const a_size = Number(feat.properties["負傷者数"])+Number(feat.properties["死者数"])
-            let popupContent = '<p class="remark"><a href="https://www.google.com/maps/search/?api=1&query=' + feat.geometry["coordinates"][1].toFixed(5)+',' + feat.geometry["coordinates"][0].toFixed(5) + '&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank" rel="noopener">この地点のGoogleマップへのリンク</a></p>';
-            popupContent += '<p class="tipstyle02"><span class="style01">'+feat.properties["発生日時　　年"]+'年'+feat.properties["発生日時　　月"]+'月'+feat.properties["発生日時　　日"]+'日（'+getDay(feat.properties["曜日(発生年月日)"])+(feat.properties["祝日(発生年月日)"]==="0"?'・祝':'')+'）';
-            popupContent += feat.properties["発生日時　　時"]+'時'+feat.properties["発生日時　　分"]+'分頃</span>に発生した<span class="style01">'+ getType(feat.properties["事故類型"]) +'の事故</span>で、';
-            popupContent += (feat.properties["負傷者数"] != "0" ? '<span class="style01">'+feat.properties["負傷者数"]+'名が負傷</span>':'')+(feat.properties["死者数"] != "0" ? " ":"した。")+(feat.properties["死者数"] != "0" ? '<span class="style01">'+feat.properties["死者数"]+'名が亡くなった</span>。':'')+'<br>';
-            popupContent += '当事者の年齢層は<span class="style01">'+ getAge(feat.properties["年齢（当事者A）"]) +(getAge(feat.properties["年齢（当事者B）"]) != "-" ? 'と、'+getAge(feat.properties["年齢（当事者B）"]):'')+'</span>'+(a_size > 2 ? '（本票記載の２名のみ表示）':'')+'。<br>';
-            popupContent += '現場は<span class="style01">'+getRoadtype(feat.properties["道路線形"])+(getLocation(feat.properties["道路形状"]) != "交差点" ? getLocation(feat.properties["道路形状"]):getSignal(feat.properties["信号機"])+"交差点")+'</span>で、';
-            popupContent += '当時の天候は<span class="style01">'+getWeather(feat.properties["天候"])+'</span>、路面状態は<span class="style01">'+getCondition(feat.properties["路面状態"])+'</span>。</p>';
-    
-            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"280px"})
-            .setLngLat(e.lngLat)
-            .setHTML(popupContent)
-            .addTo(map);
-        } else {
-            //ポイントデータがない箇所をクリックした場合は何も動作を行わない
-            /*
-            new maplibregl.Popup({closeButton:true, focusAfterOpen:false, className:"t-popup", maxWidth:"240px"})
-            .setLngLat(e.lngLat)
-            .setHTML('<p class="remark"><a href="https://www.google.com/maps/@?api=1&map_action=map&center='+e.lngLat.wrap().lat.toFixed(5)+','+e.lngLat.wrap().lng.toFixed(5)+'&zoom='+ (map.getZoom()+1).toFixed(0) +'" target="_blank">この地点のGoogleマップへのリンク</a></p>')
-            .addTo(map);
-            */
+        for (const feat of allFeatures) {
+            if (feat.layer.id === 'ta_record') {
+                carouselPages.push({ type: 'record', html: buildRecordContent(feat) });
+            }
         }
+        for (const feat of allFeatures) {
+            if (feat.layer.id === 'user-comments-layer') {
+                const cid = feat.properties.id;
+                if (!seenComments.has(cid)) {
+                    seenComments.add(cid);
+                    carouselPages.push({ type: 'comment', html: buildCommentContent(feat) });
+                }
+            }
+        }
+
+        if (carouselPages.length === 0) return;
+
+        map.panTo(e.lngLat, { duration: 500 });
+        carouselIndex = 0;
+
+        if (carouselPopup) carouselPopup.remove();
+        carouselPopup = new maplibregl.Popup({ closeButton: true, focusAfterOpen: false, className: "t-popup", maxWidth: "300px" })
+            .setLngLat(e.lngLat)
+            .setHTML('')
+            .addTo(map);
+        showCarouselPage();
     });
 
 });
@@ -648,7 +720,6 @@ const scaleCtrl = new maplibregl.ScaleControl({
 });
 map.addControl(scaleCtrl, 'bottom-left');
 
-/*
 const geolocator = new maplibregl.GeolocateControl({
         positionOptions: {
             enableHighAccuracy: true
@@ -657,7 +728,6 @@ const geolocator = new maplibregl.GeolocateControl({
     }
 );
 map.addControl(geolocator, 'top-right');
-*/
 
 document.getElementById('b_location').style.backgroundColor = "#fff";
 document.getElementById('b_location').style.color = "#333";
@@ -787,7 +857,7 @@ function showCommentForm(lngLat) {
                     <button type="submit" class="btn-submit">投稿する</button>
                     <button type="button" class="btn-cancel" id="comment-cancel">キャンセル</button>
                 </div>
-                <p class="comment-form-note">※投稿は管理者の確認後に地図上に表示されます</p>
+                <p class="comment-form-note">※投稿は管理人の確認後に地図上に表示されます</p>
             </form>
         </div>`;
 
@@ -821,8 +891,8 @@ function showCommentForm(lngLat) {
             // Cooldown check
             const lastPost = localStorage.getItem('comment_last_post');
             if (lastPost && (Date.now() - Number(lastPost)) < COMMENT_COOLDOWN_MS) {
-                const waitMin = Math.ceil((COMMENT_COOLDOWN_MS - (Date.now() - Number(lastPost))) / 60000);
-                alert('連続投稿はできません。あと約' + waitMin + '分お待ちください。');
+                //const waitMin = Math.ceil((COMMENT_COOLDOWN_MS - (Date.now() - Number(lastPost))) / 60000);
+                alert('連続投稿はできません。30秒程度お待ちください。');
                 return;
             }
             const submitBtn = form.querySelector('.btn-submit');
@@ -847,7 +917,7 @@ function showCommentForm(lngLat) {
                 submitBtn.textContent = '投稿する';
             } else {
                 localStorage.setItem('comment_last_post', String(Date.now()));
-                popup.setHTML('<div class="comment-form-container"><p class="comment-form-title">✅ 投稿ありがとうございます</p><p class="comment-form-note">管理者の確認後に地図上に表示されます。</p></div>');
+                popup.setHTML('<div class="comment-form-container"><p class="comment-form-title">✅ 投稿ありがとうございます</p><p class="comment-form-note">管理人の確認後に地図上に表示されます。</p></div>');
                 setTimeout(() => { popup.remove(); }, 3000);
             }
         });
@@ -858,12 +928,15 @@ function setCommentMode(enabled) {
     commentMode = enabled;
     const btn = document.getElementById('b_comment_mode');
     const banner = document.getElementById('comment-mode-banner');
+    const panelBtn = document.getElementById('panel-post-btn');
     if (enabled) {
         btn.classList.add('active-mode');
+        panelBtn.classList.add('active-mode');
         banner.style.display = '';
         map.getCanvas().style.cursor = 'crosshair';
     } else {
         btn.classList.remove('active-mode');
+        panelBtn.classList.remove('active-mode');
         banner.style.display = 'none';
         map.getCanvas().style.cursor = '';
         removeCommentPin();
@@ -976,6 +1049,7 @@ commentToggleCheck.addEventListener('change', function () {
     const vis = commentVisible ? 'visible' : 'none';
     map.setLayoutProperty('user-comments-layer', 'visibility', vis);
     map.setLayoutProperty('user-comments-label', 'visibility', vis);
+    updateCommentListPanel();
 });
 
 // Cursor style for comment markers
@@ -984,4 +1058,172 @@ map.on('mouseenter', 'user-comments-layer', function () {
 });
 map.on('mouseleave', 'user-comments-layer', function () {
     if (!commentMode) map.getCanvas().style.cursor = '';
+});
+
+// === Comment list panel ===
+const commentListPanel = document.getElementById('comment-list-panel');
+const commentListContent = document.getElementById('comment-list-content');
+const commentCountBadge = document.getElementById('comment-count-badge');
+const panelExpandBtn = document.getElementById('panel-expand-btn');
+const panelCloseBtn = document.getElementById('panel-close-btn');
+let panelCollapsed = false;
+let panelExpanded = false;
+
+const SVG_EXPAND = '<path d="M15 3h6v6M14 10l6.1-6.1M9 21H3v-6M10 14l-6.1 6.1"></path>';
+const SVG_COLLAPSE = '<path d="M6 9l6 6 6-6"></path>';
+
+function updateCommentListPanel() {
+    const panel = commentListPanel;
+    const content = commentListContent;
+    const titleEl = panel.querySelector('.comment-list-title');
+
+    if (!commentVisible) {
+        // Comments hidden: minimal header with post button only
+        panel.classList.add('collapsed');
+        titleEl.textContent = 'コメント（非表示中）';
+        commentCountBadge.style.display = 'none';
+        panelExpandBtn.style.display = 'none';
+        panelCloseBtn.style.display = 'none';
+        return;
+    }
+
+    // Comments visible
+    titleEl.textContent = '表示画面内のコメント一覧';
+    commentCountBadge.style.display = '';
+    panelExpandBtn.style.display = '';
+    panelCloseBtn.style.display = '';
+
+    if (panelCollapsed) {
+        panel.classList.add('collapsed');
+    } else {
+        panel.classList.remove('collapsed');
+        content.style.display = '';
+    }
+
+    // Query rendered comment features in the viewport
+    let features = [];
+    try {
+        features = map.queryRenderedFeatures({ layers: ['user-comments-layer'] });
+    } catch (e) {
+        // Layer may not be ready yet
+    }
+
+    // Deduplicate by id
+    const seen = new Set();
+    const unique = [];
+    for (const f of features) {
+        const id = f.properties.id;
+        if (!seen.has(id)) {
+            seen.add(id);
+            unique.push(f);
+        }
+    }
+
+    // Sort by date descending
+    unique.sort((a, b) => {
+        return new Date(b.properties.created_at) - new Date(a.properties.created_at);
+    });
+
+    commentCountBadge.textContent = unique.length > 99 ? '99+' : unique.length;
+
+    if (unique.length === 0) {
+        content.innerHTML = '<p class="comment-list-empty">この付近にコメントはありません</p>';
+        return;
+    }
+
+    let html = '';
+    for (const f of unique) {
+        const p = f.properties;
+        const icon = getCategoryIcon(p.category);
+        const dateStr = new Date(p.created_at).toLocaleDateString('ja-JP');
+        const text = escapeHtml(p.comment_text);
+        const name = escapeHtml(p.user_name);
+        const coords = f.geometry.coordinates;
+        html += '<div class="comment-list-item" data-lng="' + coords[0] + '" data-lat="' + coords[1] + '" data-id="' + p.id + '">';
+        html += '<span class="comment-list-item-icon">' + icon + '</span>';
+        html += '<div class="comment-list-item-body">';
+        html += '<p class="comment-list-item-text">' + text + '</p>';
+        html += '<p class="comment-list-item-meta">' + name + ' | ' + dateStr + '</p>';
+        html += '</div></div>';
+    }
+    content.innerHTML = html;
+
+    // Click handler for list items
+    content.querySelectorAll('.comment-list-item').forEach(function (item) {
+        item.addEventListener('click', function () {
+            const lng = parseFloat(this.dataset.lng);
+            const lat = parseFloat(this.dataset.lat);
+            map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 17), duration: 1500 });
+            // Close any existing popups before showing new one
+            document.querySelectorAll('.maplibregl-popup').forEach(function (el) { el.remove(); });
+            // Show popup after fly
+            setTimeout(function () {
+                const feat = map.queryRenderedFeatures(map.project([lng, lat]), { layers: ['user-comments-layer'] })[0];
+                if (feat) {
+                    const props = feat.properties;
+                    const catIcon = getCategoryIcon(props.category);
+                    const d = new Date(props.created_at).toLocaleDateString('ja-JP');
+                    const coords = feat.geometry.coordinates;
+                    let popupHtml = '<div class="popup-actions">';
+                    popupHtml += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
+                    popupHtml += '</div>';
+                    popupHtml += '<p class="comment-text">' + catIcon + ' ' + escapeHtml(props.comment_text) + '</p>';
+                    popupHtml += '<p class="comment-meta">' + escapeHtml(props.user_name) + ' | ' + d + '</p>';
+                    new maplibregl.Popup({ closeButton: true, focusAfterOpen: false, className: 'c-popup', maxWidth: '260px' })
+                        .setLngLat(feat.geometry.coordinates)
+                        .setHTML(popupHtml)
+                        .addTo(map);
+                }
+            }, 1100);
+        });
+    });
+}
+
+// Update list on map move
+map.on('moveend', updateCommentListPanel);
+
+// Panel expand button
+panelExpandBtn.addEventListener('click', function () {
+    if (panelCollapsed) {
+        // Restore from collapsed state
+        panelCollapsed = false;
+        commentListPanel.classList.remove('collapsed');
+        panelExpanded = false;
+        commentListPanel.classList.remove('expanded');
+        panelExpandBtn.querySelector('svg').innerHTML = SVG_EXPAND;
+    } else if (panelExpanded) {
+        // Shrink back to normal
+        panelExpanded = false;
+        commentListPanel.classList.remove('expanded');
+        panelExpandBtn.querySelector('svg').innerHTML = SVG_EXPAND;
+    } else {
+        // Expand to large
+        panelExpanded = true;
+        commentListPanel.classList.add('expanded');
+        panelExpandBtn.querySelector('svg').innerHTML = SVG_COLLAPSE;
+    }
+    updateCommentListPanel();
+});
+
+// Panel close button
+panelCloseBtn.addEventListener('click', function () {
+    panelCollapsed = true;
+    panelExpanded = false;
+    commentListPanel.classList.add('collapsed');
+    commentListPanel.classList.remove('expanded');
+    panelExpandBtn.querySelector('svg').innerHTML = SVG_EXPAND;
+    updateCommentListPanel();
+});
+
+// Panel post button
+document.getElementById('panel-post-btn').addEventListener('click', function () {
+    setCommentMode(!commentMode);
+    closeMenu();
+});
+
+// Initial panel update after comments load
+map.on('sourcedata', function (e) {
+    if (e.sourceId === 'user-comments' && e.isSourceLoaded) {
+        updateCommentListPanel();
+    }
 });

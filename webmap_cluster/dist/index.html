@@ -7,7 +7,7 @@
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="description" content="日本全国の交通事故発生箇所と、歩行者が巻き込まれた事故などの各種比率について、警察庁の公開データに基づき2019年〜2024年分（約190万件）を地図上に円グラフで表示しています。">
-        <title>日本全国の交通事故発生箇所と歩行者関連事故などの比率マップ</title>
+        <title>日本全国交通事故発生箇所マップ</title>
     </head>
     <body>
         <div id="map">
@@ -65,7 +65,7 @@
                 <ul class="about-links-list">
                     <li>出典：<a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank">警察庁オープンデータ</a></li>
                     <li><a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank" rel="noopener">GitHub</a></li>
-                    <li><a href="#" id="open-contact" class="contact-link">作成者への問合せフォーム</a></li>
+                    <li><a href="#" id="open-contact" class="contact-link">管理人への問合せフォーム</a></li>
                 </ul>
             </div>
         </div>
@@ -99,7 +99,31 @@
             <span>コメント投稿モード — 地図上をクリックして場所を選択</span>
             <button type="button" id="banner-cancel" class="banner-close" aria-label="解除">✕</button>
         </div>
+        <div class="comment-list-panel" id="comment-list-panel">
+            <div class="comment-list-header">
+                <div class="comment-list-title-section">
+                    <svg class="comment-list-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span class="comment-list-title">表示画面内のコメント一覧</span>
+                    <span class="comment-count-badge" id="comment-count-badge">0</span>
+                </div>
+                <div class="comment-list-controls">
+                    <button type="button" class="comment-post-btn" id="panel-post-btn" aria-label="コメントを投稿">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        投稿
+                    </button>
+                    <button type="button" class="comment-expand-btn" id="panel-expand-btn" aria-label="パネルを拡大">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M14 10l6.1-6.1M9 21H3v-6M10 14l-6.1 6.1"></path></svg>
+                    </button>
+                    <button type="button" class="comment-close-btn" id="panel-close-btn" aria-label="パネルを閉じる">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="comment-list-content" id="comment-list-content">
+                <p class="comment-list-empty">この付近にコメントはありません</p>
+            </div>
+        </div>
         <div id="icon-loader"></div>
-        <script src="app/main.js?20250921"></script>
+        <script src="app/main.js?20260413"></script>
     </body>
 </html>
