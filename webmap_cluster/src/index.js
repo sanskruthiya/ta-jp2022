@@ -433,12 +433,13 @@ map.on('load', () => {
         const p = feat.properties;
         const coords = feat.geometry.coordinates;
         const catIcon = getCategoryIcon(p.category);
+        const timePeriodEmoji = getTimePeriodEmoji(p.comment_text);
         const dateStr = new Date(p.created_at).toLocaleDateString('ja-JP');
         let html = '<span class="carousel-type-badge type-comment">💬 コメント</span>';
         html += '<div class="popup-actions">';
         html += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
         html += '</div>';
-        html += '<p class="comment-text">' + catIcon + ' ' + escapeHtml(p.comment_text) + '</p>';
+        html += '<p class="comment-text">' + catIcon + (timePeriodEmoji ? ' ' + timePeriodEmoji : '') + ' ' + escapeHtml(p.comment_text) + '</p>';
         html += '<p class="comment-meta">' + escapeHtml(p.user_name) + ' | ' + dateStr + '</p>';
         return html;
     }
@@ -814,6 +815,21 @@ function getCategoryIcon(cat) {
     return cat === 'pedestrian' ? '🚶' : cat === 'driver' ? '🚗' : '📝';
 }
 
+function getTimePeriodEmoji(commentText) {
+    if (!commentText) return '';
+    const match = commentText.match(/【時間帯：(朝|昼|夕方|夜|深夜)】/);
+    if (!match) return '';
+    const period = match[1];
+    const emojiMap = {
+        '朝': '🌅',
+        '昼': '☀️',
+        '夕方': '🌆',
+        '夜': '🌙',
+        '深夜': '🌃'
+    };
+    return emojiMap[period] || '';
+}
+
 async function loadComments() {
     try {
         const { data, error } = await supabase
@@ -848,6 +864,15 @@ function showCommentForm(lngLat) {
                     <option value="pedestrian">🚶 歩行者目線</option>
                     <option value="driver">🚗 ドライバー目線</option>
                     <option value="other">📝 その他</option>
+                </select>
+                <label>時間帯</label>
+                <select name="time_period">
+                    <option value="">指定しない</option>
+                    <option value="morning">🌅 朝（6～10時頃）</option>
+                    <option value="daytime">☀️ 昼（10～17時頃）</option>
+                    <option value="evening">🌆 夕方（17～19時頃）</option>
+                    <option value="night">🌙 夜（19～24時頃）</option>
+                    <option value="latenight">🌃 深夜（0～6時頃）</option>
                 </select>
                 <label>ニックネーム</label>
                 <input type="text" name="user_name" placeholder="匿名" maxlength="20">
@@ -899,6 +924,20 @@ function showCommentForm(lngLat) {
             submitBtn.disabled = true;
             submitBtn.textContent = '送信中...';
 
+            // 時間帯情報の処理
+            const timePeriodValue = form.time_period.value;
+            const timePeriodLabels = {
+                'morning': '朝',
+                'daytime': '昼',
+                'evening': '夕方',
+                'night': '夜',
+                'latenight': '深夜'
+            };
+            let commentText = form.comment_text.value.trim();
+            if (timePeriodValue && timePeriodLabels[timePeriodValue]) {
+                commentText = `【時間帯：${timePeriodLabels[timePeriodValue]}】${commentText}`;
+            }
+
             const { error } = await supabase
                 .from('user_comments')
                 .insert({
@@ -906,7 +945,7 @@ function showCommentForm(lngLat) {
                     lat: lngLat.lat,
                     category: form.category.value,
                     user_name: form.user_name.value.trim() || '匿名',
-                    comment_text: form.comment_text.value.trim(),
+                    comment_text: commentText,
                     status: 'pending'
                 });
 
@@ -1135,12 +1174,13 @@ function updateCommentListPanel() {
     for (const f of unique) {
         const p = f.properties;
         const icon = getCategoryIcon(p.category);
+        const timePeriodEmoji = getTimePeriodEmoji(p.comment_text);
         const dateStr = new Date(p.created_at).toLocaleDateString('ja-JP');
         const text = escapeHtml(p.comment_text);
         const name = escapeHtml(p.user_name);
         const coords = f.geometry.coordinates;
         html += '<div class="comment-list-item" data-lng="' + coords[0] + '" data-lat="' + coords[1] + '" data-id="' + p.id + '">';
-        html += '<span class="comment-list-item-icon">' + icon + '</span>';
+        html += '<span class="comment-list-item-icon">' + icon + (timePeriodEmoji ? ' ' + timePeriodEmoji : '') + '</span>';
         html += '<div class="comment-list-item-body">';
         html += '<p class="comment-list-item-text">' + text + '</p>';
         html += '<p class="comment-list-item-meta">' + name + ' | ' + dateStr + '</p>';
@@ -1162,12 +1202,13 @@ function updateCommentListPanel() {
                 if (feat) {
                     const props = feat.properties;
                     const catIcon = getCategoryIcon(props.category);
+                    const timePeriodEmoji = getTimePeriodEmoji(props.comment_text);
                     const d = new Date(props.created_at).toLocaleDateString('ja-JP');
                     const coords = feat.geometry.coordinates;
                     let popupHtml = '<div class="popup-actions">';
                     popupHtml += '<a class="popup-action-btn" href="https://www.google.com/maps/search/?api=1&query=' + coords[1].toFixed(5) + ',' + coords[0].toFixed(5) + '&zoom=' + (map.getZoom()+1).toFixed(0) + '" target="_blank" rel="noopener">🗺️ Googleマップへ</a>';
                     popupHtml += '</div>';
-                    popupHtml += '<p class="comment-text">' + catIcon + ' ' + escapeHtml(props.comment_text) + '</p>';
+                    popupHtml += '<p class="comment-text">' + catIcon + (timePeriodEmoji ? ' ' + timePeriodEmoji : '') + ' ' + escapeHtml(props.comment_text) + '</p>';
                     popupHtml += '<p class="comment-meta">' + escapeHtml(props.user_name) + ' | ' + d + '</p>';
                     new maplibregl.Popup({ closeButton: true, focusAfterOpen: false, className: 'c-popup', maxWidth: '260px' })
                         .setLngLat(feat.geometry.coordinates)
