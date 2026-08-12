@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="initial-scale=1, user-scalable=no,maximum-scale=1,width=device-width" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="description" content="This map displays traffic accident locations across Japan from 2019 to 2024 (approx. 1.9 million records), based on open data published by the National Police Agency. Pie charts visualize accident breakdown ratios by area.">
+        <title>Traffic Accident Map - Japan</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <div class="hamburger-container">
+            <button type="button" class="hamburger-button" id="menu-toggle" aria-label="Open menu">
+                <div class="hamburger-icon" id="hamburger-icon">
+                    <span></span><span></span><span></span>
+                </div>
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu" style="display:none;">
+                <button type="button" class="menu-item" id="menu-about">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    About this map
+                </button>
+                <button type="button" class="menu-item" id="b_location">
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    My location
+                </button>
+                <div class="menu-divider"></div>
+                <div class="menu-section" id="selectbox">
+                    <label class="menu-section-label">Pie chart category</label>
+                    <select id="category-id" name="category-id" class="category-select"></select>
+                </div>
+                <div class="menu-section" id="legend-section">
+                    <div id="ta-legend"></div>
+                </div>
+            </div>
+        </div>
+        <div class="about-overlay" id="about-overlay" style="display:none;">
+            <div class="about-content">
+                <div class="about-header">
+                    <h2>Traffic Accident Map - Japan</h2>
+                    <button type="button" class="close-button" id="about-close" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <p>This map displays traffic accident locations across Japan from 2019 to 2024 (approx. 1.9 million records), based on open data published by the National Police Agency (NPA). Pie charts visualize accident breakdown ratios for each area.</p>
+                <p>Click or tap on a pie chart to see accident statistics for that area. Zoom in further to view individual accident records.</p>
+                <hr class="about-divider">
+                <ul class="about-links-list">
+                    <li>Source: <a href="https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html" target="_blank" rel="noopener">NPA Open Data (National Police Agency, Japan)</a></li>
+                    <li><a href="https://github.com/sanskruthiya/ta-jp2022" target="_blank" rel="noopener">GitHub</a></li>
+                    <li><a href="#" id="open-contact" class="contact-link">Contact the author</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="contact-overlay" id="contact-overlay" style="display:none;">
+            <div class="about-content">
+                <div class="about-header">
+                    <h2>Contact</h2>
+                    <button type="button" class="close-button" id="contact-close" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <form id="contact-form" action="https://formspree.io/f/mpwjnvdr" method="POST">
+                    <input type="hidden" name="_source" value="Traffic Accident Map - Japan">
+                    <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
+                    <label class="contact-label">Name<span class="required">*</span></label>
+                    <input type="text" name="name" required class="contact-input" placeholder="Your name">
+                    <label class="contact-label">Email<span class="required">*</span></label>
+                    <input type="email" name="email" required class="contact-input" placeholder="example@mail.com">
+                    <label class="contact-label">Subject</label>
+                    <input type="text" name="_subject" class="contact-input" placeholder="Subject">
+                    <label class="contact-label">Message<span class="required">*</span></label>
+                    <textarea name="message" required class="contact-textarea" rows="5" placeholder="Enter your message here"></textarea>
+                    <button type="submit" class="contact-submit">Send</button>
+                </form>
+                <p id="contact-status" class="contact-status" style="display:none;"></p>
+            </div>
+        </div>
+        <div class="modal-backdrop" id="modal-backdrop" style="display:none;"></div>
+        <div id="icon-loader"></div>
+        <script src="app/main.js?20260811"></script>
+    </body>
+</html>
